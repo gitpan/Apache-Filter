@@ -3,7 +3,7 @@ NAME
 
 SYNOPSIS
       #### In httpd.conf:
-      PerlModule Apache::Filter;
+      PerlModule Apache::Filter
       # That's it - this isn't a handler.
       
       <Files ~ "*\.blah">

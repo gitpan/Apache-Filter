@@ -5,7 +5,7 @@ use Symbol;
 use Carp;
 use Apache::Constants(':common');
 use vars qw($VERSION);
-$VERSION = sprintf '%d.%03d', q$Revision: 1.8 $ =~ /: (\d+).(\d+)/;
+$VERSION = sprintf '%d.%03d', q$Revision: 1.9 $ =~ /: (\d+).(\d+)/;
 
 sub _out { wantarray ? @_ : $_[0] }
 
@@ -80,16 +80,9 @@ sub Apache::filter_input {
     if (@{$r->get_handlers('PerlHandler')} == $info->{'count'}) {
         # This is the last filter in the chain, so restore STDOUT to whatever
         # it was originally (usually the browser, unless this is a sub-request)
-        warn "Tie()ing STDOUT to '$info->{'old_stdout'}' for finish" if $debug;
+        warn 'Tie()ing STDOUT to ',__PACKAGE__,'::Final for finish' if $debug;
+	tie *STDOUT, __PACKAGE__ . '::Final';
 
-	if ($info->{'old_stdout'}) {
-	  # Running under stdio, restore previous tie
-	  tie *STDOUT, $info->{'old_stdout'};
-	} else {
-	  # Running under sfio, just untie
-	  untie *STDOUT;
-	}
-        $r->send_http_header();
     } else {
         # There are more filters after this one.
         # Capture the output so we can feed it to the next filter.
@@ -104,7 +97,6 @@ sub Apache::filter_input {
 sub Apache::changed_since {
     my $r = shift;
     my $info = $r->pnotes('FilterInfo');
-#    my $info = $INFO{$$r};
     
     # If any previous handlers are non-deterministic, then the content is 
     # volatile, so tell them it's changed.
@@ -141,8 +133,7 @@ sub TIEHANDLE {
 }
 
 sub PRINT {
-    my $self = shift;
-    $self->{'content'} .= join "", @_;
+    shift()->{'content'} .= join "", @_;
 }
 
 sub PRINTF {
@@ -163,7 +154,6 @@ sub READLINE {
         
     if (wantarray) {
         # This handles list context, i.e. @list = <FILEHANDLE> .
-        # Kind of wish Perl did this for me by repeated calls to READLINE.
         my @lines;
         while (length $self->{'content'}) {
             push @lines, scalar $self->READLINE();
@@ -209,6 +199,41 @@ sub GETC {
     return $char;
 }
 
+# The following subclass is what we tie STDOUT to in the final
+# handler.  Its purpose is to simply watch for the first output to
+# STDOUT, at which point we should send the HTTP headers and re-tie
+# STDOUT to the browser.  I could have implemented this as flags
+# within the regular Apache::Filter class, but then we'd be slowed
+# down by checking the flags every time we print.
+
+package Apache::Filter::Final;
+use vars qw(@ISA);
+@ISA = qw(Apache::Filter);
+
+sub finish {
+  shift;
+  my $name = shift;
+  my $r = Apache->request;
+  $r->send_http_header;
+
+  my $info = $r->pnotes('FilterInfo');
+  #warn "Tie()ing STDOUT to $info->{'old_stdout'} for finish";
+  if ($info->{'old_stdout'}) {
+    # Running under stdio, restore previous tie
+    my $stdout = tie *STDOUT, $info->{'old_stdout'};
+    $stdout->$name(@_);
+  } else {
+    # Running under sfio, just untie
+    untie *STDOUT;
+    eval "\L$name\E(\@_)";
+  }
+}
+
+
+sub PRINT  { my $s = shift; $s->finish('PRINT',  @_ ) }
+sub PRINTF { my $s = shift; $s->finish('PRINTF', @_ ) }
+
+
 1;
 
 __END__
@@ -220,7 +245,7 @@ Apache::Filter - Alter the output of previous handlers
 =head1 SYNOPSIS
 
   #### In httpd.conf:
-  PerlModule Apache::Filter;
+  PerlModule Apache::Filter
   # That's it - this isn't a handler.
   
   <Files ~ "*\.blah">

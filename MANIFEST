@@ -5,6 +5,7 @@ Makefile.PL
 README
 lib/Apache/RegistryFilter.pm
 t/CacheTest.pm
+t/ChangeHeader.pm
 t/FHandle.pm
 t/Reverse.pm
 t/UC.pm
@@ -12,6 +13,7 @@ t/docs.check/3
 t/docs.check/5
 t/docs.check/6
 t/docs.check/7
+t/docs/change_headers.h
 t/docs/determ.p
 t/docs/dir/exists
 t/docs/incl.test

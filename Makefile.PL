@@ -42,7 +42,7 @@ my ($name, $dir);
 
 WriteMakefile
   (
-   'NAME'	=> 'Apache::Filter',
+   'NAME'	=> $module,
    'VERSION_FROM' => $name, # finds $VERSION
    'dist' => { COMPRESS=>"gzip", 
 	       SUFFIX=>"gz", 

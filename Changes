@@ -1,3 +1,17 @@
+Version: 1.009  Date: 2000/05/27 14:00:58
+   Added the Apache::Final class, which catches the first output that the
+   last filter in the chain attempts to send to the browser.  We then
+   send the proper headers and immediately step out of the way, putting a
+   direct connection between the browser and the code sending the data.
+   [gyoung@laserlink.net (Geoffrey Young)]
+   
+   Sped up the PRINT method a little bit by eliminating a temporary
+   variable.
+   
+   Removed a superfluous semicolon in the documentation.
+   [sbekman@stason.org (Stas Bekman)]
+
+
 Version: 1.008  Date: 2000/04/13 00:53:53
    Added the Apache::RegistryFilter module, which provides support for
    Registry scripts in a Filter chain.

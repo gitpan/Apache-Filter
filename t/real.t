@@ -38,11 +38,13 @@ my %requests =
    5  => 'determ.p',
    6  => 'perlfirst.pl',
    7  => 'own_handle.fh/t/docs.check/7',
+   8  => 'change_headers.h',
   );
 
 my %special_tests = 
   (
-   4 => \&index_ok,
+   4  => sub { $_[0]->content =~ /index of/i },
+   8  => sub { $_[0]->header('X-Test') eq 'success' },
   );
 
 print "1.." . (2 + keys %requests) . "\n";
@@ -59,7 +61,7 @@ if ($result) {
     my $req = new HTTP::Request('GET', "http://localhost:$CONF{port}/t/docs/$requests{$testnum}");
     my $response = $ua->request($req);
     
-    &test_outcome($response->content, $testnum);
+    &test_outcome($response, $testnum);
   }
   
   &kill_httpd();
@@ -69,8 +71,6 @@ if ($result) {
 }
 
 &cleanup();
-
-sub index_ok { $_[0] =~ /index of/i };
 
 #############################
 
@@ -106,15 +106,16 @@ sub cleanup {
 }
 
 sub test_outcome {
-  my $text = shift;
+  my $response = shift;
   my $i = shift;
   
-  my $expected;
+  my ($text, $expected);
   my $ok = ($special_tests{$i} ?
-	    &{$special_tests{$i}}($text) :
-	    ($text eq ($expected = `cat t/docs.check/$i`)) );
+            $special_tests{$i}->($response) :
+            (($text = $response->content) eq ($expected = `cat t/docs.check/$i`)) );
   &report($ok);
-  print "Result: $text\nExpected: $expected\n" if ($ENV{TEST_VERBOSE} and not $ok);
+  my $headers = $response->headers_as_string();
+  print "Result: $headers\n$text\nExpected: $expected\n" if ($ENV{TEST_VERBOSE} and not $ok);
 }
 
 sub report {
@@ -178,6 +179,7 @@ PerlRequire $DIR/t/UC.pm
 PerlRequire $DIR/t/Reverse.pm
 PerlRequire $DIR/t/CacheTest.pm
 PerlRequire $DIR/t/FHandle.pm
+PerlRequire $DIR/t/ChangeHeader.pm
 
 
 # Default - this includes directories too
@@ -203,6 +205,11 @@ PerlHandler Apache::UC Apache::Reverse
 <Files ~ "\\.fh\$">
  SetHandler perl-script
  PerlHandler Apache::FHandle
+</Files>
+
+<Files ~ "\\.h\$">
+ SetHandler perl-script
+ PerlHandler Apache::ChangeHeader
 </Files>
 
 <Files ~ "\\.pl\$">
