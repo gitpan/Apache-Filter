@@ -3,7 +3,6 @@ Filter.pm
 MANIFEST
 Makefile.PL
 README
-SSI.pm
 t/Reverse.pm
 t/UC.pm
 t/docs.check/3

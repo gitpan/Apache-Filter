@@ -5,7 +5,7 @@ use Symbol;
 use Carp;
 use Apache::Constants(':common');
 use vars qw(%INFO $VERSION);
-$VERSION = '0.02';
+$VERSION = '0.03';
 
 sub _out { wantarray ? @_ : $_[0] }
 
