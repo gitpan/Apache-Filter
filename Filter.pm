@@ -5,7 +5,7 @@ use Symbol;
 use Carp;
 use Apache::Constants(':common');
 use vars qw($VERSION);
-$VERSION = sprintf '%d.%03d', q$Revision: 1.5 $ =~ /: (\d+).(\d+)/;
+$VERSION = sprintf '%d.%03d', q$Revision: 1.6 $ =~ /: (\d+).(\d+)/;
 
 sub _out { wantarray ? @_ : $_[0] }
 
@@ -21,6 +21,7 @@ sub _out { wantarray ? @_ : $_[0] }
 
 sub Apache::filter_input {
     my $r = shift;
+    my %args = @_;
     my $debug = 0;
 
     # We use the alias $info for convenience and speed
@@ -28,10 +29,7 @@ sub Apache::filter_input {
 	$r->pnotes('FilterInfo', {});
     }
     my $info = $r->pnotes('FilterInfo');
-    if ($debug) {
-      my $reqname = $r->filename;
-      warn "*******info for $reqname is @{[ %$info ]}";
-    }
+    warn "*******info for @{[ $r->filename() ]} is @{[ %$info ]}" if $debug;
 
     my $status = OK;
     $info->{'fh_in'} = gensym;
@@ -39,39 +37,45 @@ sub Apache::filter_input {
     
     # Prevent early filters from messing up the content-length of late filters
     $r->header_out('Content-Length', undef);
-    
-    if (!$count_in and -d $r->filename()) {
+
+    unless (exists $args{handle}) {
+      if (!$count_in and -d $r->filename()) {
         # Let mod_dir handle it - does this work?
         $info->{'is_dir'} = 1;
-    }
-    if ($info->{'is_dir'}) {
+      }
+      if ($info->{'is_dir'}) {
         return _out undef, DECLINED;
+      }
     }
-        
+    
     if ($count_in) {
         # A previous filter has written to STDOUT.
         # We'll assume it's done writing.
         # Thus we should turn STDOUT into fh_in.
         
         warn "Turning STDOUT (@{[ref tied *STDOUT]}) into filter_fh_in" if $debug;
-        tie *{$info->{'fh_in'}}, 'Apache::Filter', tied *STDOUT;
+        tie *{$info->{'fh_in'}}, __PACKAGE__, tied *STDOUT;
         
     } else {
-        # This is the first filter in the chain.  We just open $r->filename.
-        
+      # This is the first filter in the chain.  We just open $r->filename.
+      
+      if (exists $args{handle}) {
+	$info->{'fh_in'} = $args{handle};
+      } else {
         warn "@{[$r->filename]}: This is the first filter" if $debug;
         unless (-e $r->filename()) {
             $r->log_error($r->filename() . " not found");
-            return _out undef, NOT_FOUND;
+	    ($info->{'fh_in'}, $status) = (undef, NOT_FOUND);
         }
         unless ( open (*{$info->{'fh_in'}}, $r->filename()) ) {
             $r->log_error("Can't open " . $r->filename() . ": $!");
-            return _out undef, FORBIDDEN;
+	    ($info->{'fh_in'}, $status) = (undef, FORBIDDEN);
         }
+      }
         
-        warn "Untie()ing STDOUT" if $debug;
-        $info->{'old_stdout'} = ref tied(*STDOUT);
-        untie *STDOUT;
+      warn "Untie()ing STDOUT" if $debug;
+      $info->{'old_stdout'} = ref tied(*STDOUT);
+      untie *STDOUT;
     }
     
     if (@{$r->get_handlers('PerlHandler')} == $info->{'count'}) {
@@ -156,7 +160,6 @@ sub READLINE {
     my $self = shift;
     my $debug = 0;
     warn "reading line, content is $self->{'content'}" if $debug;
-#warn "\$self is $self";
     return unless length $self->{'content'};
         
     if (wantarray) {
@@ -169,9 +172,9 @@ sub READLINE {
         return @lines;
     }
     
-    if (defined $/) { #/ For BBEdit coloring
-        if (my $l = length $/) {  #/ For BBEdit coloring
-            my $spot = index($self->{'content'}, $/); #/ For BBEdit coloring
+    if (defined $/) {
+        if (my $l = length $/) {
+            my $spot = index($self->{'content'}, $/);
             if ($spot > -1) {
                 my $out = substr($self->{'content'}, 0, $spot + $l);
                 substr($self->{'content'},0, $spot + $l) = '';
@@ -277,8 +280,12 @@ requested by the user ($r->filename), or the output of a previous filter.
 If called in a scalar context, that filehandle is all you'll get back.  If
 called in a list context, you'll also get an Apache status code (OK, 
 NOT_FOUND, or FORBIDDEN) that tells you whether $r->filename was successfully
-found and opened.
+found and opened.  If it was not, the filehandle returned will be undef.
 
+If for some reason you have already opened the filehandle you'll want
+to read from, call C<$r-E<gt>filter_input(handle=>$handle)>, and
+C<filter_input()> won't try to open any files.  It will pass your
+handle back to you.
 
 =item * $r->changed_since($time)
 
@@ -390,17 +397,15 @@ call $r->filter_input exactly once.  Otherwise C<Apache::Filter> couldn't
 capture the output of the handlers properly, and it wouldn't know when
 to release the output to the browser.
 
-The output of each filter is accumulated in memory before it's passed
-to the next filter, so memory requirements might be large for large pages.
-I'm not sure whether Apache::OutputChain is subject to this same behavior,
-but I think it's not.  In future versions I might find a way around this, 
-or cache large pages to disk so memory requirements don't get out of hand.  
+The output of each filter (except the last) is accumulated in memory
+before it's passed to the next filter, so memory requirements are
+large for large pages.  Apache::OutputChain only needs to keep one
+item from print()'s argument list in memory at a time, so it doesn't
+have this problem, but there are others (each chunk is filtered
+independently, so content spanning several chunks won't be properly
+parsed).  In future versions I might find a way around this, or cache
+large pages to disk so memory requirements don't get out of hand.
 We'll see whether it's a problem.
-
-My usual alpha disclaimer: the interface here isn't stable.  So far this
-should be treated as a proof-of-concept.  In particular, some people don't
-like the idea of adding methods to the Apache:: class, while some (like me)
-think it's great.  So that may change.
 
 A couple examples of filters are provided with this distribution in the t/
 subdirectory: UC.pm converts all its input to upper-case, and Reverse.pm
@@ -419,6 +424,8 @@ it B<after> the $r->filter_input call.
 
 =head1 TO DO
 
+Add a buffered mode to the final output, so that we can send a proper
+Content-Length header. [gozer@hbesoftware.com (Philippe M. Chiasson)]
 
 =head1 BUGS
 
@@ -426,14 +433,16 @@ This uses some funny stuff to figure out when the currently executing
 handler is the last handler in the chain.  As a result, code that
 manipulates the handler list at runtime (using push_handlers and the
 like) might produce mayhem.  Poke around a bit in the code before you 
-try anything.
+try anything.  Let me know if you have a better idea.
 
-As of 0.07, Apache::Filter will automatically return DECLINED when $r->filename points to a
-directory.  This is just because in most cases this is what you want to do
-(so that mod_dir can take care of the request), and because figuring
-out the "right" way to handle directories seems pretty tough - the
-right way would allow a directory indexing handler to be a filter, which
-isn't possible now.  Suggestions are welcome.
+As of 0.07, Apache::Filter will automatically return DECLINED when
+$r->filename points to a directory.  This is just because in most
+cases this is what you want to do (so that mod_dir can take care of
+the request), and because figuring out the "right" way to handle
+directories seems pretty tough - the right way would allow a directory
+indexing handler to be a filter, which isn't possible now.  Also, you
+can't properly pass control to a non-mod_perl indexer like
+mod_autoindex.  Suggestions are welcome.
 
 I haven't considered what will happen if you use this and you haven't
 turned on PERL_STACKED_HANDLERS.

@@ -6,6 +6,7 @@ lib/Apache/PerlRunFilter.pm
 t/CacheTest.pm
 t/Reverse.pm
 t/UC.pm
+t/FHandle.pm
 t/docs.check/3
 t/docs.check/5
 t/docs.check/6

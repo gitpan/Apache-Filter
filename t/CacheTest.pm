@@ -7,19 +7,19 @@ use Apache::Constants qw(:common);
 
 
 sub handler {
-	my $r = shift;
-
-	$r->content_type("text/html");
-	my ($fh, $status) = $r->filter_input();
-	return $status unless $status == OK;
-
-	if ($r->changed_since(time)) {
-		print "Changed since right now\n";
-	} else {
-		print "Hasn't changed since right now\n";
-	}
-
-	return OK;
+  my $r = shift;
+  
+  $r->content_type("text/html");
+  my ($fh, $status) = $r->filter_input();
+  return $status unless $status == OK;
+  
+  if ($r->changed_since(time)) {
+    print "Changed since right now\n";
+  } else {
+    print "Hasn't changed since right now\n";
+  }
+  
+  return OK;
 }
 1;
 

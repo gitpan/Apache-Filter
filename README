@@ -3,14 +3,26 @@ Hi,
 This is the Apache::Filter module.  It is meant to run under Apache's
 mod_perl.  
 
+The purpose of this module is to allow a chain of content filters,
+i.e. one bunch of Perl code (a handler) can produce some output
+(e.g. a Perl script generating some HTML), and then that output can be
+run through another handler (like Apache::SSI, for processing SSI
+directives), and so on.  This is known as 'chaining' handlers, or in
+the parlance of this module, creating 'Filters'.
+
 It provides functionality similar to Apache::OutputChain, but with a nicer
 interface (filters are listed in forward order, not reverse, in httpd.conf;
 and you don't need to write two separate modules, one which chains and one
 which doesn't [e.g. Apache::SSI and Apache::SSIChain]).
 
-A couple examples of filters are provided with this distribution in the t/
-subdirectory: UC.pm converts all its input to upper-case, and Reverse.pm
-prints the lines of its input reversed.
+Several of the content-generation modules on CPAN can run under
+Apache::Filter - these are known as "Filter-aware" modules.  Some
+examples are Apache::SSI, HTML::Mason, Apache::PerlRun (using the
+derived class Apache::PerlRunFilter in this distribution), and others.
+You can also write your own.  A couple examples of filters are
+provided with this distribution in the t/ subdirectory: UC.pm converts
+all its input to upper-case, and Reverse.pm prints the lines of its
+input reversed.
 
 For more specific information, please see the documentation inside Filter.pm,
 by doing "pod2txt Filter.pm", or "perldoc Apache::Filter" once you've
@@ -28,6 +40,14 @@ To install the module:
 -Ken Williams
 
 Revision history for Perl extension Apache::Filter.
+
+1.006 Sat Jan 29 11:26:24 EST 2000
+   - Added 'handle' parameter to filter_input(). 
+     [Vegard.Vesterheim@runit.sintef.no (Vegard Vesterheim)]
+
+   - If $r->filename can't be opened, we no longer abort halfway
+     through filter_input().  Just return an undef filehandle at the end.
+     [gozer@hbesoftware.com (Philippe M. Chiasson)]
 
 1.005 Sun Oct 17 11:57:20 EDT 1999
    - Fixed a problem that prevented proper functioning when Perl is

@@ -5,10 +5,7 @@
 
 # Change this to the path to a mod_perl-enabled Apache web server.
 my $HTTPD = "/home/ken/http/httpd";
-
 my $PORT = 8228;     # The port the server will run on
-my $USER = 'http';   # The user the server will run as
-my $GROUP = 'http';  # The group the server will run as
 
 # You shouldn't have to change any of these, but you can if you want:
 $ACONF = "/dev/null";
@@ -44,6 +41,7 @@ my %requests =
      4  => 'dir/',  # A directory
      5  => 'determ.p',
      6  => 'perlfirst.pl',
+     7  => 'own_handle.fh/t/docs.check/7',
     );
 
 my %special_tests = 
@@ -153,8 +151,6 @@ sub create_conf {
 #This file is created by the $0 script.
 
 Port $PORT
-User $USER
-Group $GROUP
 ServerName localhost
 DocumentRoot $DIR
 
@@ -176,6 +172,7 @@ PerlModule Apache::PerlRunFilter;
 PerlRequire $DIR/t/UC.pm
 PerlRequire $DIR/t/Reverse.pm
 PerlRequire $DIR/t/CacheTest.pm
+PerlRequire $DIR/t/FHandle.pm
 
 
 # Default - this includes directories too
@@ -198,6 +195,11 @@ PerlHandler Apache::UC Apache::Reverse
  PerlHandler Apache::UC Apache::CacheTest
 </Files>
 
+<Files ~ "\\.fh\$">
+ SetHandler perl-script
+ PerlHandler Apache::FHandle
+</Files>
+
 <Files ~ "\\.pl\$">
  SetHandler perl-script
  PerlSetVar Filter on
@@ -212,8 +214,8 @@ PerlHandler Apache::UC Apache::Reverse
 
 EOF
 	
-	close CONF;
-	
-	chmod 0644, $file or warn "Couldn't 'chmod 0644 $file': $!";
-	return 1;
+  close CONF;
+  
+  chmod 0644, $file or warn "Couldn't 'chmod 0644 $file': $!";
+  return 1;
 }
