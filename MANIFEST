@@ -11,7 +11,6 @@ t/docs.check/12
 t/docs.check/13
 t/docs.check/14
 t/docs.check/16
-t/docs.check/17
 t/docs.check/3
 t/docs.check/5
 t/docs.check/6
@@ -31,6 +30,7 @@ t/docs/simple.r
 t/docs/simple.u
 t/docs/test.html
 t/filehandle.t
+t/gzip.t
 t/lib/Apache/CacheTest.pm
 t/lib/Apache/ChangeHeader.pm
 t/lib/Apache/Compress.pm

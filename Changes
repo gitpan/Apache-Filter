@@ -1,3 +1,13 @@
+Version: 1.019  Date: 2001/08/29 13:48:56
+   Added a FILENO stub, which fixes a compatibility problem with
+   Apache::Compress.
+   
+   Moved the Apache::Compress-related tests into their own subtest, so it
+   can be skipped if the user doesn't have Apache::Compress installed.
+   
+   'Changes' file isn't auto-generated from CVS anymore.
+
+
 Version: 1.018  Date: 2001/04/08 07:30:13
    Some fixes for the 'perl Makefile.PL' and 'make test' stages.  Fixes a
    problem for those who want to skip testing with a real httpd, and

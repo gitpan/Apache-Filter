@@ -4,7 +4,7 @@ use strict;
 use Symbol;
 use Apache::Constants(':common');
 use vars qw($VERSION @ISA);
-$VERSION = sprintf '%d.%03d', q$Revision: 1.18 $ =~ /: (\d+)\.(\d+)/;
+$VERSION = '1.019';
 @ISA = qw(Apache);
 
 # $r->pnotes('FilterInfo') contains a hashref ($info) which works like member data of $r.
@@ -236,6 +236,9 @@ sub GETC {
     substr($self->{'content'}, 0, 1) = '';
     return $char;
 }
+
+# You can't do low-level operations on these filehandles.
+sub FILENO { undef }
 
 1;
 

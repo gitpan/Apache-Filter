@@ -4,31 +4,25 @@ $|=1;
 use strict;
 use lib 't/lib';  # Until my changes are merged into the main distro
 use Apache::test qw(skip_test have_httpd test);
-skip_test unless have_httpd;
+BEGIN {
+  skip_test unless have_httpd;
+  skip_test unless eval{require Apache::Compress};
+}
+use Compress::Zlib;
+
 
 my %requests = 
   (
-   3  => '/docs/simple.u',
-   4  => '/docs/dir/',  # A directory
-   5  => '/docs/determ.p',
-   6  => '/docs/perlfirst.pl',
-   7  => '/docs/own_handle.fh/docs.check/7',
-   8  => '/docs/change_headers.h',
-   9  => '/docs/send_headers.pl',
-   10 => '/docs/perlfirst.pl',  # Make sure it can run twice.
-   11 => '/docs/perlfirst.pl',  # Make sure it can run thrice.
-   12 => '/docs/perlfirst.pl',  # Make sure it can run quice.
-   13 => '/docs/simple.r',
-   14 => '/docs/send_fd.pl',
-   15 => '/docs/send_headers.pl',
-   16 => '/docs/send_fd.plr',
+   3  => '/docs/compress.cp',
+   4  => {uri=>'/docs/compress.cp',
+          headers=>{'Accept-Encoding' => 'gzip'},
+         },
   );
 
 my %special_tests = 
   (
-   4  => { 'test' => sub { $_[0] =~ /index of/i } },
-   8  => { 'test' => sub { $_[1]->header('X-Test') eq 'success' } },
-   15 => { 'test' => sub { $_[1]->header('Content-Type') eq 'ungulate/moose' } },
+   3  => { 'test' => sub { !defined($_[1]->header('Content-Encoding')) } },
+   4  => { 'test' => sub { $_[1]->header('Content-Encoding') =~ /gzip/ } },
   );
 
 use vars qw($TEST_NUM);

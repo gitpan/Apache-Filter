@@ -21,10 +21,9 @@ WriteMakefile
    'VERSION_FROM' => $name, # finds $VERSION
    'dist' => { COMPRESS=>"gzip", 
 	       SUFFIX=>"gz", 
-               PREOP=>('rm -f Changes README; '.
-                       "cvs log $name | \$(PERL) -MCVS::Parse -e prettylog > Changes; ".
+               PREOP=>('rm -f README; '.
                        "pod2text -80 < $name > README; ".
-                       "cp -f Changes README $dir-\$(VERSION); "
+                       "cp -f README $dir-\$(VERSION); "
                       ),
              },
    'clean' => {FILES => "t/httpd t/httpd.conf t/error_log"},
