@@ -1,3 +1,9 @@
+Version: 1.015  Date: 2000/12/20 03:01:57
+   Fixed a bug in Apache::RegistryFilter that caused a crash when
+   handler() was called as a function instead of a method.
+   [thumper@bsi.menlo-park.ca.us]
+
+
 Version: 1.014  Date: 2000/11/06 20:41:00
    Previous filters can set content-type via
    $r->send_http_header('text/blah'), and the value they set will be used

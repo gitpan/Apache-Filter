@@ -9,8 +9,8 @@ use vars qw($Debug @ISA);
 @ISA = qw(Apache::RegistryNG);
 
 sub handler ($$) {
-  my ($class, $r) = (shift, shift->filter_register);
-  $class->SUPER::handler($r);
+  my ($class, $r) = @_ > 1 ? (shift, shift) : (__PACKAGE__, shift);
+  $class->SUPER::handler($r->filter_register);
 }
 
 sub readscript {
