@@ -4,7 +4,7 @@ use strict;
 use Symbol;
 use Apache::Constants(':common');
 use vars qw($VERSION @ISA);
-$VERSION = '1.020';
+$VERSION = '1.021';
 @ISA = qw(Apache);
 
 # $r->pnotes('FilterInfo') contains a hashref ($info) which works like member data of $r.
@@ -25,6 +25,12 @@ sub Apache::filter_register {
   
   $r = Apache->request->pnotes('filterobject') if Apache->request->pnotes('filterobject');
   unless ($r->isa(__PACKAGE__)) {
+    if (ref($r) ne 'Apache') {
+      # $r could be an Apache::Request object, or a different subclass
+      # of Apache.  Make an on-the-fly subclass of whatever it is.
+      @ISA = (ref $r);
+      $r->register_cleanup(sub {@ISA = qw(Apache)});
+    }
     Apache->request($r = bless {_r => $r});
   }
   Apache->request->pnotes(filterobject => $r);
@@ -120,7 +126,7 @@ sub send_http_header {
 
 sub send_fd {
   my $self = shift;
-  if ($self->is_last_filter and fileno($_[0])) {
+  if ($self->is_last_filter and eval{fileno $_[0]}) {
     # Can send native filehandle directly to client
     $self->SUPER::send_fd(@_);
   } else {
@@ -193,7 +199,7 @@ sub READLINE {
     if (wantarray) {
         # This handles list context, i.e. @list = <FILEHANDLE> .
         my @lines;
-        while (length $self->{'content'}) {
+        while (defined $self->{'content'} and length $self->{'content'}) {
             push @lines, scalar $self->READLINE();
         }
         return @lines;

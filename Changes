@@ -1,3 +1,15 @@
+Version: 1.021   Fri Dec 27 10:13:23 CST 2002
+
+ - The test suite now provides a bit more useful information upon
+   failure and uses Test.pm to generate its output.
+
+ - Avoid an "undefined value" warning in READLINE() method [Dave
+   Rolsky]
+
+ - If the initial $r isn't an Apache object (could be Apache::Request
+   or a subclass of Apache), make an on-the-fly subclass of whatever
+   it is. [Dave Rolsky]
+
 Version: 1.020  Date: Mon Nov 11 17:11:31 AEST 2002
    Fixed the Apache::PerlRunFilter module, which was missing a call to
    filter_register(). [Ruslan U. Zakirov, Oleh Khoma]

@@ -75,9 +75,9 @@ ScoreBoardFile /dev/null
 AddType text/html .html
 
 # Look in ./blib/lib
-#PerlModule ExtUtils::testlib
 <Perl>
- use lib "$DIR/blib/lib", "$DIR/t/lib";
+ use blib '$DIR';
+ use lib  '$DIR/t/lib';
 </Perl>
 
 $args{include}
