@@ -5,7 +5,7 @@ use Symbol;
 use Carp;
 use Apache::Constants(':common');
 use vars qw($VERSION);
-$VERSION = sprintf '%d.%03d', q$Revision: 1.3 $ =~ /: (\d+).(\d+)/;
+$VERSION = sprintf '%d.%03d', q$Revision: 1.4 $ =~ /: (\d+).(\d+)/;
 
 sub _out { wantarray ? @_ : $_[0] }
 
@@ -78,7 +78,13 @@ sub Apache::filter_input {
         # it was originally (usually the browser, unless this is a sub-request)
         warn "Tie()ing STDOUT to '$info->{'old_stdout'}' for finish" if $debug;
 
-        tie *STDOUT, $info->{'old_stdout'};  # Do we need to pass $r too?  Hope not.
+	if ($info->{'old_stdout'}) {
+	  # Running under stdio, restore previous tie
+	  tie *STDOUT, $info->{'old_stdout'};
+	} else {
+	  # Running under sfio, just untie
+	  untie *STDOUT;
+	}
         $r->send_http_header();
     } else {
         # There are more filters after this one.
