@@ -4,7 +4,7 @@ use strict;
 use Symbol;
 use Apache::Constants(':common');
 use vars qw($VERSION @ISA);
-$VERSION = '1.019';
+$VERSION = '1.020';
 @ISA = qw(Apache);
 
 # $r->pnotes('FilterInfo') contains a hashref ($info) which works like member data of $r.
@@ -210,7 +210,7 @@ sub READLINE {
                 return delete $self->{'content'};
             }
         } else {
-            return $1 if $self->{'content'} =~ s/^(.*?\n+)//;
+            return $1 if $self->{'content'} =~ s/^([^\n]*\n+)//;
             return delete $self->{'content'};
         }
     } else {
@@ -283,7 +283,7 @@ In basic operation, each of the handlers Filter1, Filter2, and Filter3 will make
 to $r->filter_input(), which will return a filehandle.  For Filter1,
 the filehandle points to the requested file.  For Filter2, the filehandle
 contains whatever Filter1 wrote to STDOUT.  For Filter3, it contains
-whatever Filter3 wrote to STDOUT.  The output of Filter3 goes directly
+whatever Filter2 wrote to STDOUT.  The output of Filter3 goes directly
 to the browser.
 
 Note that the modules Filter1, Filter2, and Filter3 are listed in
@@ -305,6 +305,7 @@ me of others you know about.
  Apache::ASP
  HTML::Mason
  Apache::SimpleReplace
+ Apache::HTML::ClassParser (part of HTML_Tree distribution)
 
 
 =head1 METHODS

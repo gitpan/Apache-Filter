@@ -34,7 +34,7 @@ DESCRIPTION
     make a call to $r->filter_input(), which will return a filehandle. For
     Filter1, the filehandle points to the requested file. For Filter2, the
     filehandle contains whatever Filter1 wrote to STDOUT. For Filter3, it
-    contains whatever Filter3 wrote to STDOUT. The output of Filter3 goes
+    contains whatever Filter2 wrote to STDOUT. The output of Filter3 goes
     directly to the browser.
 
     Note that the modules Filter1, Filter2, and Filter3 are listed in forward
@@ -55,6 +55,7 @@ DESCRIPTION
      Apache::ASP
      HTML::Mason
      Apache::SimpleReplace
+     Apache::HTML::ClassParser (part of HTML_Tree distribution)
 
 METHODS
     Apache::Filter is a subclass of Apache, so all Apache methods are available.
@@ -79,15 +80,15 @@ METHODS
 
     * $r->changed_since($time)
         Returns true or false based on whether the current input seems like it
-        has changed since `$time'. Currently the criteria to figure this out is
-        this: if the file pointed to by `$r->finfo' hasn't changed since the
+        has changed since "$time". Currently the criteria to figure this out is
+        this: if the file pointed to by "$r->finfo" hasn't changed since the
         time given, and if all previous filters in the chain are deterministic
         (see below), then we return false. Otherwise we return true.
 
         This method is meant to be useful in implementing caching schemes.
 
-        A caution: always call the `changed_since()' and `deterministic()'
-        methods AFTER the `filter_register()' method. This is because
+        A caution: always call the "changed_since()" and "deterministic()"
+        methods AFTER the "filter_register()" method. This is because
         Apache::Filter uses a crude counting method to figure out which handler
         in the chain is currently executing, and calling these routines out of
         order messes up the counting.
@@ -149,8 +150,8 @@ METHODS
             return OK;
          }
 
-        A caution: always call the `changed_since()' and `deterministic()'
-        methods AFTER the `filter_register()' method. This is because
+        A caution: always call the "changed_since()" and "deterministic()"
+        methods AFTER the "filter_register()" method. This is because
         Apache::Filter uses a crude counting method to figure out which handler
         in the chain is currently executing, and calling these routines out of
         order messes up the counting.
@@ -164,7 +165,7 @@ HEADERS
     send_http_header() is a no-op.
 
 NOTES
-    You'll notice in the SYNOPSIS that I say `"PerlSetVar Filter On"'. That
+    You'll notice in the SYNOPSIS that I say ""PerlSetVar Filter On"". That
     information isn't actually used by this module, it's used by modules which
     are themselves filters (like Apache::SSI). I hereby suggest that filtering
     modules use this parameter, using it as the switch to detect whether they
@@ -174,8 +175,8 @@ NOTES
     opening the $r->filename file.
 
     VERY IMPORTANT: if one handler in a stacked handler chain uses
-    `Apache::Filter', then THEY ALL MUST USE IT. This means they all must call
-    $r->filter_register exactly once. Otherwise `Apache::Filter' couldn't
+    "Apache::Filter", then THEY ALL MUST USE IT. This means they all must call
+    $r->filter_register exactly once. Otherwise "Apache::Filter" couldn't
     capture the output of the handlers properly, and it wouldn't know when to
     release the output to the browser.
 

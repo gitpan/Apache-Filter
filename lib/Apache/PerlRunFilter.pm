@@ -26,6 +26,7 @@ sub handler {
 
     # Get a filehandle to the Perl code
     if (lc $r->dir_config('Filter') eq 'on') {
+      $r = $r->filter_register;
       my ($fh, $status) = $r->filter_input();
       return $status unless $status == OK;
       $pr->{'fh'} = $fh;

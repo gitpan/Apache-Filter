@@ -1,3 +1,14 @@
+Version: 1.020  Date: Mon Nov 11 17:11:31 AEST 2002
+   Fixed the Apache::PerlRunFilter module, which was missing a call to
+   filter_register(). [Ruslan U. Zakirov, Oleh Khoma]
+
+   Minor regex speedup in READLINE() method of filehandle.
+
+   Correct doc bug about Filter2 and Filter3.
+
+   Add Apache::HTML::ClassParser to list of filter-aware modules.
+
+
 Version: 1.019  Date: 2001/08/29 13:48:56
    Added a FILENO stub, which fixes a compatibility problem with
    Apache::Compress.
