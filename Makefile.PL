@@ -2,8 +2,10 @@ use ExtUtils::MakeMaker;
 # See lib/ExtUtils/MakeMaker.pm for details of how to influence
 # the contents of the Makefile that is written.
 
-my $default = $ENV{'APACHE'} || '/usr/lib/httpd/httpd';
 $|=1;
+
+my $default = $ENV{'APACHE'} || which('apache') || which('httpd') || '/usr/lib/httpd/httpd';
+
 print("\nFor testing purposes, please give the full path to an httpd\n",
       "with mod_perl enabled.  The path defaults to \$ENV{APACHE}, if present.\n");
 
@@ -15,7 +17,9 @@ do {
   $conf{httpd} ||= $default;
 } until -e $conf{httpd} || !print("$conf{httpd} not found\n");
 
-$default = getpwuid($<) || "nobody";
+
+# Get default user (apache doesn't like to run as root, special-case it)
+$default = ($< == 0 ? 'nobody' : getpwuid($<) || 'nobody');
 print "User to run tests under [$default]: ";
 chomp ($conf{user} = <STDIN>);
 $conf{user} ||= $default;
@@ -39,6 +43,16 @@ my $module = 'Apache::Filter';
 my ($name, $dir);
 ($name = $module) =~ s/.*::(\w+)/$1.pm/;
 ($dir = $module) =~ s/::/-/g;
+
+# Find an executable in the PATH.
+sub which {
+  foreach (map { "$_/$_[0]" } split /:/, $ENV{PATH}) {
+    next unless m,^/,;
+    return $_ if -x;
+  }
+}
+
+
 
 WriteMakefile
   (

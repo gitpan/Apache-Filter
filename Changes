@@ -1,3 +1,25 @@
+Version: 1.010  Date: 2000/06/17 18:26:05
+   Apache::RegistryFilter now overrides Apache's header-sending routines
+   with no-ops, so that you may leave header-sending calls in your
+   Registry scripts.  This means you can use the same code under
+   Apache::Registry and Apache::RegistryFilter.
+   
+   Added a test to make sure the above header-overriding works properly.
+   
+   Added lots of insane crap to the 'make test' phase to support apaches
+   built with --enable-shared=max or any DSOs.  [caelum@debian.org
+   (Rafael Kitover)]
+   
+   During 'perl Makefile.PL', search around for copies of apache to use
+   during 'make test'.  Also default to user 'nobody' if the current user
+   is root.  [caelum@debian.org (Rafael Kitover)]
+   
+   Added Apache::SimpleReplace to list of Filter-aware handlers.
+   [gyoung@laserlink.net (Geoffrey Young)]
+   
+   Changed <\Files> to </Files> in documentation. [sbekman@stason.org (Stas Bekman)]
+
+
 Version: 1.009  Date: 2000/05/27 14:00:58
    Added the Apache::Final class, which catches the first output that the
    last filter in the chain attempts to send to the browser.  We then

@@ -27,6 +27,15 @@ sub readscript {
   return $pr->{'code'} = \(scalar <$fh>);
 }
 
+sub run {
+  # We temporarily override the header-sending routines to make them
+  # noops.  This lets people leave these methods in their scripts.
+  my $pr = shift;
+  local *Apache::send_http_header = sub {};
+  local *Apache::send_cgi_header = sub {};
+  $pr->SUPER::run(@_);
+}
+
 1;
 
 __END__
@@ -62,12 +71,23 @@ functionality.  The only difference between the two is that this
 module can be used in conjunction with the Apache::Filter module,
 whereas Apache::RegistryNG cannot.
 
-It only takes a tiny little bit of code to make the filtering stuff
-work, so perhaps it would be more appropriate for the code to be
-integrated right into Apache::RegistryNG.
-
 For information on how to set up filters, please see the codumentation
 for Apache::Filter.
+
+=head1 INCOMPATIBILITIES
+
+At this point the only changes you might have to make to your Registry
+scripts are quite minor and obscure.  That is, unless I haven't
+thought of something.  Please let me know if any other changes are needed.
+
+=item * Don't call send_fd()
+
+If you call Apache's $r->send_fd($filehandle) method, the output will
+be sent directly to the browser instead of filtered through the filter
+chain.  This is okay if your script is the last filter in the chain,
+but clearly it won't work otherwise.
+
+==back
 
 =head1 CAVEATS
 

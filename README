@@ -10,7 +10,7 @@ SYNOPSIS
        SetHandler perl-script
        PerlSetVar Filter On
        PerlHandler Filter1 Filter2 Filter3
-      <\Files>
+      </Files>
       
       #### In Filter1, Filter2, and Filter3:
       my $fh = $r->filter_input();
@@ -53,6 +53,7 @@ DESCRIPTION
      Apache::SSI
      Apache::ASP
      HTML::Mason
+     Apache::SimpleReplace
 
 METHODS
     This module doesn't create an Apache handler class of its own - rather,

@@ -13,14 +13,15 @@ t/docs.check/3
 t/docs.check/5
 t/docs.check/6
 t/docs.check/7
+t/docs.check/9
 t/docs/change_headers.h
 t/docs/determ.p
 t/docs/dir/exists
 t/docs/incl.test
 t/docs/perlfirst.pl
+t/docs/send_headers.pl
 t/docs/simple.r
 t/docs/simple.u
 t/docs/test.html
 t/filehandle.t
 t/real.t
-t/ssi.save

@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 
+$|=1;
+
 # This test will start up a real httpd server with Apache::Filter loaded in
 # it, and make several requests on that server.
 
@@ -39,6 +41,7 @@ my %requests =
    6  => 'perlfirst.pl',
    7  => 'own_handle.fh/t/docs.check/7',
    8  => 'change_headers.h',
+   9  => 'send_headers.pl',
   );
 
 my %special_tests = 
@@ -90,12 +93,19 @@ sub start_httpd {
   &do_system("cp /dev/null $ELOG");
   &do_system("$CONF{httpd} -f $D_CONF") == 0
     or die "Can't start httpd: $!";
+## Wait for server to start.
+#  while (!-e $PID) { sleep 1 }
   print STDERR "ready. ";
   return 1;
 }
 
 sub kill_httpd {
-  &do_system("kill -TERM `cat $PID`");
+# Need PID file to kill.
+  return 1 if !-e $PID;
+
+  &do_system("kill `cat $PID`");
+  sleep 1;
+  if (-e $PID) { &do_system("kill -TERM `cat $PID`") }
   &do_eval("unlink '$ELOG'") unless $BAD;
   return 1;
 }
@@ -150,31 +160,87 @@ sub dirify {
 sub create_conf {
   my $file = $CONF;
   open (CONF, ">$file") or die "Can't create $file: $!" && return;
+
+  # Figure out if modules need to be loaded.
+  my $server_conf;
+  for (`$CONF{httpd} -V`) {
+  	if (/SERVER_CONFIG_FILE="(.*)"/) {
+		$server_conf = $1;
+		last;
+	}
+  }
+
+  my @lines;
+  if (open (SERVER_CONF, $server_conf)) { @lines = <SERVER_CONF>; close SERVER_CONF; }
+  my @modules       =   grep /^\s*(Add|Load)Module/, @lines;
+  my ($server_root) = (map /^\s*ServerRoot\s*(\S+)/, @lines);
+
+  # Rewrite all modules to load from an absolute path.
+  for (@modules) {
+    s!(\s[^/\s][\S]+/)!$server_root/$1!;
+  }
+
+  # Directories where apache DSOs live.
+  my (@module_dirs) = (map m!(/\S*/)!, @modules);
+
+  # Have to make sure that dir, autoindex and perl are loaded.
+  my @required  = qw(dir autoindex perl);
+
+  my @l = `$CONF{httpd} -l`;
+  my @compiled_in = map /^\s*(\S+)/, @l[1..@l-2];
+
+  my @load;
+  for my $module (@required) {
+    if (!grep /$module/i, @compiled_in and !grep /$module/i, @modules) {
+      push @load, $module;
+    }
+  }
+
+  # Finally compute the directives to load modules that need to be loaded.
+ MODULE: for my $module (@load) {
+    for my $module_dir (@module_dirs) {
+      if (-e "$module_dir/mod_$module.so") {
+        push @modules, "LoadModule ${module}_module $module_dir/mod_$module.so\n"; next MODULE;
+      } elsif (-e "$module_dir/lib$module.so") {
+        push @modules, "LoadModule ${module}_module $module_dir/lib$module.so\n"; next MODULE;
+      } elsif (-e "$module_dir/ApacheModule\u$module.dll") {
+        push @modules, "LoadModule ${module}_module $module_dir/ApacheModule\u$module.dll\n"; next MODULE;
+      }
+    }
+  }
+
   print CONF <<EOF;
 
 #This file is created by the $0 script.
 
+ServerType standalone
 Port $CONF{port}
 User $CONF{user}
 Group $CONF{group}
 ServerName localhost
 DocumentRoot $DIR
 
+@{[join '', @modules]}
+
 ErrorLog $D_ELOG
 PidFile $D_PID
 AccessConfig $D_ACONF
 ResourceConfig $D_SRM
 LockFile $D_LOCK
-TypesConfig /dev/null
+
+DirectoryIndex index.html
+
+<IfModule mod_log_config.c>
 TransferLog /dev/null
+</IfModule>
+
 ScoreBoardFile /dev/null
 
+TypesConfig /dev/null
 AddType text/html .html
 
-# Look in ./blib/lib
-PerlModule ExtUtils::testlib
-PerlModule Apache::Filter
-PerlModule Apache::RegistryFilter;
+PerlRequire $DIR/Filter.pm
+PerlRequire $DIR/lib/Apache/RegistryFilter.pm
 PerlRequire $DIR/t/UC.pm
 PerlRequire $DIR/t/Reverse.pm
 PerlRequire $DIR/t/CacheTest.pm

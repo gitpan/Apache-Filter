@@ -5,7 +5,7 @@ use Symbol;
 use Carp;
 use Apache::Constants(':common');
 use vars qw($VERSION);
-$VERSION = sprintf '%d.%03d', q$Revision: 1.9 $ =~ /: (\d+).(\d+)/;
+$VERSION = sprintf '%d.%03d', q$Revision: 1.10 $ =~ /: (\d+)\.(\d+)/;
 
 sub _out { wantarray ? @_ : $_[0] }
 
@@ -252,7 +252,7 @@ Apache::Filter - Alter the output of previous handlers
    SetHandler perl-script
    PerlSetVar Filter On
    PerlHandler Filter1 Filter2 Filter3
-  <\Files>
+  </Files>
   
   #### In Filter1, Filter2, and Filter3:
   my $fh = $r->filter_input();
@@ -296,6 +296,7 @@ me of others you know about.
  Apache::SSI
  Apache::ASP
  HTML::Mason
+ Apache::SimpleReplace
 
 
 =head1 METHODS
