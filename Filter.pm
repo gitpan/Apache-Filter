@@ -4,29 +4,30 @@ use strict;
 use Symbol;
 use Carp;
 use Apache::Constants(':common');
-use vars qw(%INFO $VERSION);
-$VERSION = '0.09';
+use vars qw($VERSION);
+$VERSION = '0.10';
 
 sub _out { wantarray ? @_ : $_[0] }
 
-# $INFO{$r} object works like member data of $r, but since $r is a scalarref,
-# we can't store data in it.  Someday there will be $r->pinfo, it will be better than this.
+# $r->pnotes('FilterInfo') contains a hashref ($info) which works like member data of $r.
 # 
-# $INFO{$r}{'fh_in'} is a Apache::Filter filehandle containing the output of the previous filter
-# $INFO{$r}{'is_dir'} is true if $r->filename() is a directory
-# $INFO{$r}{'count'} is incremented every time $r->filter_input() is called, so it contains
+# $info->{'fh_in'} is a Apache::Filter filehandle containing the output of the previous filter
+# $info->{'is_dir'} is true if $r->filename() is a directory
+# $info->{'count'} is incremented every time $r->filter_input() is called, so it contains
 #                the position of the current filter in the handler stack.
-# $INFO{$r}{'determ'}{$i} contains a true value if handler number $i has declared that it
+# $info->{'determ'}{$i} contains a true value if handler number $i has declared that it
 #                     is deterministic (see docs).
 
 sub Apache::filter_input {
     my $r = shift;
     my $debug = 0;
 
-    warn "*******\%INFO is @{[ %INFO ]}" if $debug;
-    $INFO{$$r} ||= {};
-    my ($info) = ($INFO{$$r} ||= {});
-    # We use the alias $info for convenience (and speed?)
+    # We use the alias $info for convenience and speed
+    unless (defined $r->pnotes('FilterInfo')) {
+	$r->pnotes('FilterInfo', {});
+    }
+    my $info = $r->pnotes('FilterInfo');
+    warn "*******info is @{[ %$info ]}" if $debug;
 
     my $status = OK;
     $info->{'fh_in'} = gensym;
@@ -65,7 +66,7 @@ sub Apache::filter_input {
         }
         
         warn "Untie()ing STDOUT" if $debug;
-        $r->register_cleanup(sub { delete $Apache::Filter::INFO{$$r}; });
+#        $r->register_cleanup(sub { delete $Apache::Filter::INFO{$$r}; });
         $info->{'old_stdout'} = ref tied(*STDOUT);
         untie *STDOUT;
     }
@@ -84,17 +85,20 @@ sub Apache::filter_input {
         tie *STDOUT, __PACKAGE__;
     }
 
-    warn "END %INFO is @{[%INFO]} " if $debug;
+    warn "END info is @{[%$info]} " if $debug;
     return _out $info->{'fh_in'}, $status;
 }
 
 sub Apache::changed_since {
     my $r = shift;
+    my $info = $r->pnotes('FilterInfo');
+#    my $info = $INFO{$$r};
     
     # If any previous handlers are non-deterministic, then the content is 
     # volatile, so tell them it's changed.
-    if ($INFO{$$r}{'count'} > 1) {
-        return 1 if grep {not $INFO{$$r}{'determ'}{$_}} (1..$INFO{$$r}{'count'}-1);
+
+    if ($info->{'count'} > 1) {
+        return 1 if grep {not $info->{'determ'}{$_}} (1..$info->{'count'}-1);
     }
     
     # Okay, only deterministic handlers have touched this.  If the file has
@@ -105,11 +109,12 @@ sub Apache::changed_since {
 
 sub Apache::deterministic {
     my $r = shift;
+    my $info = $r->pnotes('FilterInfo');
 
     if (@_) {
-        $INFO{$$r}{'determ'}{$INFO{$$r}{'count'}} = shift;
+        $info->{'determ'}{$info->{'count'}} = shift;
     }
-    return $INFO{$$r}{'determ'}{$INFO{$$r}{'count'}};
+    return $info->{'determ'}{$info->{'count'}};
 }
 
 # This package is a TIEHANDLE package, so it can be used like this:

@@ -29,9 +29,14 @@ To install the module:
 
 Revision history for Perl extension Apache::Filter.
 
-0.09  
+0.10 Fri May  7 01:12:58 EDT 1999
+   - Got rid of the global $INFO{$$r} hack for storing $r member data - now
+     I just use $r->pnotes('FilterInput'), which is much cleaner.  This will
+     probably solve some sporadic errors some folks were having.
+
+0.09 Apr 21 02:37 1999
    - Implemented the read(FH,$buf,$len) and getc(FH) functions for the 
-     filehandle returned by $r->filter_input [Thanks to Josua Chamos for
+     filehandle returned by $r->filter_input [Thanks to Joshua Chamos for
      the prodding]
 
    - Explicitly call $r->header_out('Content-Type', undef) for every
@@ -39,9 +44,9 @@ Revision history for Perl extension Apache::Filter.
      allows the last filter to set the content length.  See the docs.
 
    - Does anybody besides me think it's funny that the "make test" for
-     the "deterministic" function seems to fail sporadically,
+     the "deterministic" method seems to fail sporadically,
      unreproducably, and randomly, with no apparent symptoms or
-     causes?  Anyway, I think it's probably a problem with the test,
+     causes?  Anyway, I think it's probably a timing problem with the test,
      and not the Filter.pm code.
 
 0.08  Mon Dec 14 01:27:26 EST 1998
