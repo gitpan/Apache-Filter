@@ -5,7 +5,7 @@ use Symbol;
 use Carp;
 use Apache::Constants(':common');
 use vars qw($VERSION);
-$VERSION = sprintf '%d.%03d', q$Revision: 1.6 $ =~ /: (\d+).(\d+)/;
+$VERSION = sprintf '%d.%03d', q$Revision: 1.7 $ =~ /: (\d+).(\d+)/;
 
 sub _out { wantarray ? @_ : $_[0] }
 
@@ -39,7 +39,7 @@ sub Apache::filter_input {
     $r->header_out('Content-Length', undef);
 
     unless (exists $args{handle}) {
-      if (!$count_in and -d $r->filename()) {
+      if (!$count_in and -d $r->finfo) {
         # Let mod_dir handle it - does this work?
         $info->{'is_dir'} = 1;
       }
@@ -63,12 +63,11 @@ sub Apache::filter_input {
 	$info->{'fh_in'} = $args{handle};
       } else {
         warn "@{[$r->filename]}: This is the first filter" if $debug;
-        unless (-e $r->filename()) {
-            $r->log_error($r->filename() . " not found");
+        if (not -e $r->finfo) {
+	    $r->log_error($r->filename() . " not found");
 	    ($info->{'fh_in'}, $status) = (undef, NOT_FOUND);
-        }
-        unless ( open (*{$info->{'fh_in'}}, $r->filename()) ) {
-            $r->log_error("Can't open " . $r->filename() . ": $!");
+        } elsif ( not open (*{$info->{'fh_in'}}, $r->filename()) ) {
+	    $r->log_error("Can't open " . $r->filename() . ": $!");
 	    ($info->{'fh_in'}, $status) = (undef, FORBIDDEN);
         }
       }
@@ -116,7 +115,7 @@ sub Apache::changed_since {
     
     # Okay, only deterministic handlers have touched this.  If the file has
     # changed since the given time, return true.  Otherwise, return false.
-    return 1 if ((stat $r->filename)[9] > shift);
+    return 1 if ((stat $r->finfo)[9] > shift);
     return 0;
 }
 
@@ -265,6 +264,14 @@ are "Filter-aware," i.e. they each call $r->filter_input() exactly
 once, before they start printing to STDOUT.  There should be almost
 no overhead for doing this when there's only one element in the chain.
 
+Currently the following public modules are Filter-aware.  Please tell
+me of others you know about.
+
+ Apache::SSI
+ HTML::Mason
+ Apache::Registry (preliminary support)
+
+
 =head1 METHODS
 
 This module doesn't create an Apache handler class of its own - rather, it adds some
@@ -291,7 +298,7 @@ handle back to you.
 
 Returns true or false based on whether the current input seems like it 
 has changed since C<$time>.  Currently the criteria to figure this out
-is this: if the file pointed to by C<$r-E<gt>filename> hasn't changed since
+is this: if the file pointed to by C<$r-E<gt>finfo> hasn't changed since
 the time given, and if all previous filters in the chain are deterministic
 (see below), then we return false.  Otherwise we return true.
 
@@ -410,10 +417,6 @@ We'll see whether it's a problem.
 A couple examples of filters are provided with this distribution in the t/
 subdirectory: UC.pm converts all its input to upper-case, and Reverse.pm
 prints the lines of its input reversed.
-
-I tried using $r->finfo for file-test operators, but they didn't seem to
-work.  If they start working or I figure out what's going on, I'll replace
-$r->filename with $r->finfo.  This is pretty bizarre.
 
 Finally, a caveat: in version 0.09 I started explicitly setting the
 Content-Length to undef inside $r->filter_input.  This prevents early

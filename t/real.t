@@ -3,10 +3,6 @@
 # This test will start up a real httpd server with Apache::Filter loaded in
 # it, and make several requests on that server.
 
-# Change this to the path to a mod_perl-enabled Apache web server.
-my $HTTPD = "/home/ken/http/httpd";
-my $PORT = 8228;     # The port the server will run on
-
 # You shouldn't have to change any of these, but you can if you want:
 $ACONF = "/dev/null";
 $CONF = "t/httpd.conf";
@@ -19,7 +15,7 @@ $ELOG = "t/error_log";
 ################ Don't change anything below here ####################
 ######################################################################
 
-#line 25 real.t
+#line 20 real.t
 
 use vars qw(
      $ACONF   $CONF   $SRM   $LOCK   $PID   $ELOG
@@ -28,26 +24,26 @@ use vars qw(
 my $DIR = `pwd`;
 chomp $DIR;
 &dirify(qw(ACONF CONF SRM LOCK PID ELOG));
-
+&read_httpd_loc();
 
 use strict;
-use vars qw($TEST_NUM $BAD);
+use vars qw($TEST_NUM $BAD %CONF);
 use LWP::UserAgent;
 use Carp;
 
 my %requests = 
-    (
-     3  => 'simple.u',
-     4  => 'dir/',  # A directory
-     5  => 'determ.p',
-     6  => 'perlfirst.pl',
-     7  => 'own_handle.fh/t/docs.check/7',
-    );
+  (
+   3  => 'simple.u',
+   4  => 'dir/',  # A directory
+   5  => 'determ.p',
+   6  => 'perlfirst.pl',
+   7  => 'own_handle.fh/t/docs.check/7',
+  );
 
 my %special_tests = 
-    (
-     4 => \&index_ok,
-    );
+  (
+   4 => \&index_ok,
+  );
 
 print "1.." . (2 + keys %requests) . "\n";
 
@@ -60,7 +56,7 @@ if ($result) {
   
   foreach my $testnum (sort {$a<=>$b} keys %requests) {
     my $ua = new LWP::UserAgent;
-    my $req = new HTTP::Request('GET', "http://localhost:$PORT/t/docs/$requests{$testnum}");
+    my $req = new HTTP::Request('GET', "http://localhost:$CONF{port}/t/docs/$requests{$testnum}");
     my $response = $ua->request($req);
     
     &test_outcome($response->content, $testnum);
@@ -78,14 +74,21 @@ sub index_ok { $_[0] =~ /index of/i };
 
 #############################
 
+sub read_httpd_loc {
+  open LOC, "t/httpd.loc" or die "t/httpd.loc: $!";
+  while (<LOC>) {
+    $CONF{$1} = $2 if /^(\w+)=(.*)/;
+  }
+}
+
 sub start_httpd {
   print STDERR "Starting http server... ";
-  unless (-x $HTTPD) {
-    warn("$HTTPD doesn't exist or isn't executable.  Edit real.t if you want to test with a real apache server.\n");
+  unless (-x $CONF{httpd}) {
+    warn("$CONF{httpd} doesn't exist or isn't executable.  Edit real.t if you want to test with a real apache server.\n");
     return;
   }
   &do_system("cp /dev/null $ELOG");
-  &do_system("$HTTPD -f $D_CONF") == 0
+  &do_system("$CONF{httpd} -f $D_CONF") == 0
     or die "Can't start httpd: $!";
   print STDERR "ready. ";
   return 1;
@@ -150,7 +153,9 @@ sub create_conf {
 
 #This file is created by the $0 script.
 
-Port $PORT
+Port $CONF{port}
+User $CONF{user}
+Group $CONF{group}
 ServerName localhost
 DocumentRoot $DIR
 

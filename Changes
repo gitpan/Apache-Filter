@@ -1,0 +1,42 @@
+Version: 1.007  Date: 2000/03/24 15:03:14
+   Changed several $r->filename instances to $r->finfo.  This will speed
+   up operation.  I did this once in the past, but had to change it back
+   to $r->filename because $r->finfo wasn't working right.  mod_perl
+   version 1.18 claims to have fixed the problems, so I'm changing it
+   forth again.
+   
+   Fixed a run-time server error that occurs when the input filename
+   doesn't exist.  [gyoung@laserlink.net (Geoffrey Young)]
+
+
+Version: 1.006  Date: 2000/01/29 17:54:44
+   Added 'handle' parameter to filter_input().
+   [Vegard.Vesterheim@runit.sintef.no (Vegard Vesterheim)]
+   
+   If $r->filename can't be opened, we no longer abort halfway through
+   filter_input().  Just return an undef filehandle at the end.
+   [gozer@hbesoftware.com (Philippe M. Chiasson)]
+
+
+Version: 1.005  Date: 1999/10/17 15:59:23
+   No changes - version bump to update the README file.
+
+
+Version: 1.004  Date: 1999/10/17 15:47:27
+   Fixed a problem that prevented proper functioning when Perl is
+   compiled with sfio instead of stdio.  Should work properly now.
+
+
+Version: 1.003  Date: 1999/09/12 03:25:45
+   Forgot to replace Doug's PerlRun documentation with my
+   PerlRunFilter documentation in the last release, so I did it now.
+
+
+Version: 1.002  Date: 1999/09/12 02:22:47
+   Added $VERSION stuff to integrate with CVS.
+
+
+Version: 1.001  Date: 1999/09/12 02:17:10
+   Added files to CVS
+
+
