@@ -5,8 +5,8 @@ use Symbol;
 use Carp;
 use Apache::Constants(':common');
 use vars qw($VERSION);
-$VERSION = sprintf '%d.%03d', q$Revision: 1.10 $ =~ /: (\d+)\.(\d+)/;
-
+$VERSION = sprintf '%d.%03d', q$Revision: 1.11 $ =~ /: (\d+)\.(\d+)/;
+ 
 sub _out { wantarray ? @_ : $_[0] }
 
 # $r->pnotes('FilterInfo') contains a hashref ($info) which works like member data of $r.

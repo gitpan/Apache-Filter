@@ -42,6 +42,9 @@ my %requests =
    7  => 'own_handle.fh/t/docs.check/7',
    8  => 'change_headers.h',
    9  => 'send_headers.pl',
+   10 => 'perlfirst.pl',  # Make sure it can run twice.
+   11 => 'perlfirst.pl',  # Make sure it can run thrice.
+   12 => 'perlfirst.pl',  # Make sure it can run quice.
   );
 
 my %special_tests = 
@@ -106,7 +109,7 @@ sub kill_httpd {
   &do_system("kill `cat $PID`");
   sleep 1;
   if (-e $PID) { &do_system("kill -TERM `cat $PID`") }
-  &do_eval("unlink '$ELOG'") unless $BAD;
+#  &do_eval("unlink '$ELOG'") unless $BAD;
   return 1;
 }
 

@@ -17,6 +17,7 @@ sub readscript {
   if (lc $pr->dir_config('Filter') eq 'on') {
     my $status;
     ($fh, $status) = $pr->filter_input();
+    $pr->notes('FilterRead' => 'this_time');
     return $status unless $status == OK;
   } else {
     $fh = gensym;
@@ -28,9 +29,16 @@ sub readscript {
 }
 
 sub run {
+  my $pr = shift;
+
+  # If the script was read & compiled in this child in a previous run,
+  # we won't have called filter_input().  Call it now.
+  unless ($pr->notes('FilterRead') eq 'this_time') {
+    $pr->filter_input(handle => {}) 
+  }
+
   # We temporarily override the header-sending routines to make them
   # noops.  This lets people leave these methods in their scripts.
-  my $pr = shift;
   local *Apache::send_http_header = sub {};
   local *Apache::send_cgi_header = sub {};
   $pr->SUPER::run(@_);
@@ -79,6 +87,8 @@ for Apache::Filter.
 At this point the only changes you might have to make to your Registry
 scripts are quite minor and obscure.  That is, unless I haven't
 thought of something.  Please let me know if any other changes are needed.
+
+=over 4
 
 =item * Don't call send_fd()
 

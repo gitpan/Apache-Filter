@@ -66,5 +66,5 @@ WriteMakefile
                        "cp -f Changes README $dir-\$(VERSION); "
                       ),
              },
-   'clean' => {FILES => "t/httpd.loc"},
+   'clean' => {FILES => "t/httpd.loc t/error_log"},
   );

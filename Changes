@@ -1,3 +1,15 @@
+Version: 1.011  Date: 2000/06/24 23:38:21
+   Fixed a bug in which Apache::RegistryFilter wasn't properly
+   registering itself with Apache::Filter on the 2nd, 3rd, etc. times a
+   script gets run.  tbrown@baremetal.com (Tom Brown) found the bug.
+   
+   Fixed the POD in Apache::RegistryFilter, which was slightly malformed.
+   gyoung@laserlink.net (Geoffrey Young) found it.
+   
+   During 'make test', the error log won't be removed, so you can examine
+   it even if there were no failures.
+
+
 Version: 1.010  Date: 2000/06/17 18:26:05
    Apache::RegistryFilter now overrides Apache's header-sending routines
    with no-ops, so that you may leave header-sending calls in your

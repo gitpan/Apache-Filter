@@ -9,6 +9,9 @@ t/ChangeHeader.pm
 t/FHandle.pm
 t/Reverse.pm
 t/UC.pm
+t/docs.check/10
+t/docs.check/11
+t/docs.check/12
 t/docs.check/3
 t/docs.check/5
 t/docs.check/6
