@@ -1,3 +1,13 @@
+Version: 1.018  Date: 2001/04/08 07:30:13
+   Some fixes for the 'perl Makefile.PL' and 'make test' stages.  Fixes a
+   problem for those who want to skip testing with a real httpd, and
+   properly removes quotation marks from 'LoadModule' directives when
+   building httpd.conf to use during 'make test'.
+   
+   No changes were made to the actual Apache::Filter code, just stuff in
+   the test suite.
+
+
 Version: 1.017  Date: 2001/04/06 21:34:28
    Fixed a filehandle bug in which send_fd() would complain about a 'Bad
    filehandle'.  Occurred most often with Apache::Compress.

@@ -3,7 +3,8 @@
 $|=1;
 use strict;
 use lib 't/lib';  # Until my changes are merged into the main distro
-use Apache::test;
+use Apache::test qw(skip_test have_httpd test);
+skip_test unless have_httpd;
 
 my %requests = 
   (

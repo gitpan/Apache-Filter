@@ -1,13 +1,14 @@
+use strict;
 use ExtUtils::MakeMaker;
 use lib 't/lib';  # distributed here until changes are incorporated into the real version
-use Apache::test;
+use Apache::test qw(have_httpd);
 
 my %params = Apache::test->get_test_params();
 chomp (my $cwd = `pwd`);
 Apache::test->write_httpd_conf
     (%params,
      include => do {local $/; <DATA>});
-*MY::test = sub { Apache::test->MM_test(%params) };
+*MY::test = sub { Apache::test->MM_test(%params) } if have_httpd();
 
 my $module = 'Apache::Filter';
 my ($name, $dir);
@@ -28,7 +29,7 @@ WriteMakefile
              },
    'clean' => {FILES => "t/httpd t/httpd.conf t/error_log"},
    'PREREQ_PM' => {
-                   'mod_perl' => '1.24_01',
+                   have_httpd() ? ('mod_perl' => '1.24_01') : (),
 		  },
   );
 

@@ -1,10 +1,10 @@
 package Apache::Filter;
-
+ 
 use strict;
 use Symbol;
 use Apache::Constants(':common');
 use vars qw($VERSION @ISA);
-$VERSION = sprintf '%d.%03d', q$Revision: 1.17 $ =~ /: (\d+)\.(\d+)/;
+$VERSION = sprintf '%d.%03d', q$Revision: 1.18 $ =~ /: (\d+)\.(\d+)/;
 @ISA = qw(Apache);
 
 # $r->pnotes('FilterInfo') contains a hashref ($info) which works like member data of $r.
