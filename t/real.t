@@ -20,6 +20,8 @@ my %requests =
    13 => '/docs/simple.r',
    14 => '/docs/send_fd.pl',
    15 => '/docs/send_headers.pl',
+   16 => '/docs/compress.cp',
+   17 => '/docs/send_fd.plr',
   );
 
 my %special_tests = 

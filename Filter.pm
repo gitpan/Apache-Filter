@@ -4,7 +4,7 @@ use strict;
 use Symbol;
 use Apache::Constants(':common');
 use vars qw($VERSION @ISA);
-$VERSION = sprintf '%d.%03d', q$Revision: 1.16 $ =~ /: (\d+)\.(\d+)/;
+$VERSION = sprintf '%d.%03d', q$Revision: 1.17 $ =~ /: (\d+)\.(\d+)/;
 @ISA = qw(Apache);
 
 # $r->pnotes('FilterInfo') contains a hashref ($info) which works like member data of $r.
@@ -120,8 +120,8 @@ sub send_http_header {
 
 sub send_fd {
   my $self = shift;
-  if ($self->is_last_filter) {
-    # Can send directly to client
+  if ($self->is_last_filter and fileno($_[0])) {
+    # Can send native filehandle directly to client
     $self->SUPER::send_fd(@_);
   } else {
     my $fd = shift;

@@ -1,3 +1,10 @@
+Version: 1.017  Date: 2001/04/06 21:34:28
+   Fixed a filehandle bug in which send_fd() would complain about a 'Bad
+   filehandle'.  Occurred most often with Apache::Compress.
+   
+   Added a couple of tests to properly exercise the send_fd() method.
+
+
 Version: 1.016  Date: 2000/12/20 03:43:44
    Noted dependency on mod_perl 1.24_01.
 

@@ -35,9 +35,14 @@ print STDERR $result if $ENV{'TEST_VERBOSE'};
 	print FH "123456789";
 	read(FH, $buf, 2);
 	&report($buf eq '12', $buf);
+#warn "eof first time";
+#	&report(!eof($buf), "eof is ".eof($buf)."\n");
 	read(FH, $buf, 10, 2);
 	&report($buf eq '123456789', $buf);
+#	&report(eof($buf), eof($buf));
 }
+
+
 
 sub report {
    my $ok = shift;

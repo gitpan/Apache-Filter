@@ -47,6 +47,7 @@ PerlModule Apache::ChangeHeader
 SetHandler perl-script
 PerlHandler Apache::UC Apache::Reverse
 
+PerlSetVar Filter on
 
 <FilesMatch "\.ur$">
  SetHandler perl-script
@@ -68,6 +69,11 @@ PerlHandler Apache::UC Apache::Reverse
  PerlHandler Apache::FHandle
 </FilesMatch>
 
+<FilesMatch "\.cp$">
+ SetHandler perl-script
+ PerlHandler Apache::RegistryFilter Apache::Compress
+</FilesMatch>
+
 <FilesMatch "\.h$">
  SetHandler perl-script
  PerlHandler Apache::ChangeHeader
@@ -75,7 +81,11 @@ PerlHandler Apache::UC Apache::Reverse
 
 <FilesMatch "\.pl$">
  SetHandler perl-script
- PerlSetVar Filter on
  PerlHandler Apache::RegistryFilter Apache::UC
+</FilesMatch>
+
+<FilesMatch "\.plr$">
+ SetHandler perl-script
+ PerlHandler Apache::RegistryFilter
 </FilesMatch>
 
