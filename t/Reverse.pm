@@ -10,6 +10,7 @@ use Apache::Constants qw(:common);
 
 sub handler {
 	my $r = shift;
+	$r = shift unless ref $r;
 
 	$r->content_type("text/html");
 	my ($fh, $status) = $r->filter_input();

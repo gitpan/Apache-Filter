@@ -5,10 +5,11 @@ package Apache::UC;
 
 use strict;
 use Apache::Constants qw(:common);
-
+use Carp('cluck');
 
 sub handler {
 	my $r = shift;
+	$r = shift unless ref $r;
 
 	$r->content_type("text/html");
 	my ($fh, $status) = $r->filter_input();

@@ -5,33 +5,48 @@ use Symbol;
 use Carp;
 use Apache::Constants(':common');
 use vars qw(%INFO $VERSION);
-$VERSION = '0.07';
+$VERSION = '0.08';
 
 sub _out { wantarray ? @_ : $_[0] }
 
-# %INFO object works like member data of $r, but since $r is a non-perl
-# object, we can't store data in it.
+# $INFO{$r} object works like member data of $r, but since $r is a scalarref,
+# we can't store data in it.  Someday there will be $r->pinfo, it will be better than this.
 # 
-# $INFO{'fh_in'} is a Apache::Filter filehandle containing the output of the previous filter
-# $INFO{'is_dir'} is true if $r->filename() is a directory
-# $INFO{'count'} is incremented every time $r->filter_input() is called, so it contains
+# $INFO{$r}{'fh_in'} is a Apache::Filter filehandle containing the output of the previous filter
+# $INFO{$r}{'is_dir'} is true if $r->filename() is a directory
+# $INFO{$r}{'count'} is incremented every time $r->filter_input() is called, so it contains
 #                the position of the current filter in the handler stack.
-# $INFO{'determ'}{$i} contains a true value if handler number $i has declared that it
+# $INFO{$r}{'determ'}{$i} contains a true value if handler number $i has declared that it
 #                     is deterministic (see docs).
 
 sub Apache::filter_input {
     my $r = shift;
     my $debug = 0;
+
+    warn "*******\%INFO is @{[ %INFO ]}" if $debug;
+    $INFO{$$r} ||= {};
+    my ($info) = ($INFO{$$r} ||= {});
+    # We use the alias $info for convenience (and speed?)
+
+    if ($debug) {
+        if ($r->is_main) {
+            warn "(\$r is main request $$r)";
+        } else {
+            warn "(\$r is sub request $$r)";
+        }
+        warn "Now \%INFO is @{[ %INFO ]}";
+    }
     
     my $status = OK;
-    $INFO{'fh_in'} = gensym;
-    my $count_in = $INFO{'count'}++; # Yuck - I don't like counting invocations.
+    $info->{'fh_in'} = gensym;
+    my $count_in = $info->{'count'}++;
+
     
     if (!$count_in and -d $r->filename()) {
         # Let mod_dir handle it - does this work?
-        $INFO{'is_dir'} = 1;
+        $info->{'is_dir'} = 1;
     }
-    if ($INFO{'is_dir'}) {
+    if ($info->{'is_dir'}) {
         return _out undef, DECLINED;
     }
         
@@ -40,58 +55,68 @@ sub Apache::filter_input {
         # We'll assume it's done writing.
         # Thus we should turn STDOUT into fh_in.
         
-        tie *{$INFO{'fh_in'}}, 'Apache::Filter', tied *STDOUT;
+        warn "Turning STDOUT (@{[ref tied *STDOUT]}) into filter_fh_in" if $debug;
+        tie *{$info->{'fh_in'}}, 'Apache::Filter', tied *STDOUT;
         
     } else {
         # This is the first filter in the chain.  We just open $r->filename.
         
+        warn "@{[$r->filename]}: This is the first filter" if $debug;
         unless (-e $r->filename()) {
             $r->log_error($r->filename() . " not found");
             return _out undef, NOT_FOUND;
         }
-        unless ( open (*{$INFO{'fh_in'}}, $r->filename()) ) {
+        unless ( open (*{$info->{'fh_in'}}, $r->filename()) ) {
             $r->log_error("Can't open " . $r->filename() . ": $!");
             return _out undef, FORBIDDEN;
         }
         
-        $r->register_cleanup(sub {%Apache::Filter::INFO=()});
+        warn "Untie()ing STDOUT" if $debug;
+        $r->register_cleanup(sub { delete $Apache::Filter::INFO{$$r}; });
+        $info->{'old_stdout'} = ref tied(*STDOUT);
         untie *STDOUT;
     }
     
-    if (@{$r->get_handlers('PerlHandler')} == $INFO{'count'}) {  #YUCK!
-        # This is the last filter in the chain, so let STDOUT go to the browser.
-        tie *STDOUT, ref($r), $r;
+    if (@{$r->get_handlers('PerlHandler')} == $info->{'count'}) {
+        # This is the last filter in the chain, so restore STDOUT to whatever
+        # it was originally (usually the browser, unless this is a sub-request)
+        warn "Tie()ing STDOUT to '$info->{'old_stdout'}' for finish" if $debug;
+
+        tie *STDOUT, $info->{'old_stdout'};  # Do we need to pass $r too?  Hope not.
         $r->send_http_header();
     } else {
         # There are more filters after this one.
         # Capture the output so we can feed it to the next filter.
+        warn "Tie()ing STDOUT to ", __PACKAGE__ if $debug;
         tie *STDOUT, __PACKAGE__;
     }
-    
-    return _out $INFO{'fh_in'}, $status;
+
+    warn "END %INFO is @{[%INFO]} " if $debug;
+    return _out $info->{'fh_in'}, $status;
 }
 
 sub Apache::changed_since {
+    my $r = shift;
     
     # If any previous handlers are non-deterministic, then the content is 
     # volatile, so tell them it's changed.
-    if ($INFO{'count'} > 1) {
-        return 1 if grep {not $INFO{'determ'}{$_}} (1..$INFO{'count'}-1);
+    if ($INFO{$$r}{'count'} > 1) {
+        return 1 if grep {not $INFO{$$r}{'determ'}{$_}} (1..$INFO{$$r}{'count'}-1);
     }
     
     # Okay, only deterministic handlers have touched this.  If the file has
     # changed since the given time, return true.  Otherwise, return false.
-    my $r = shift;
     return 1 if ((stat $r->filename)[9] > shift);
     return 0;
 }
 
 sub Apache::deterministic {
-    shift;  # Don't need $r
+    my $r = shift;
+
     if (@_) {
-        $INFO{'determ'}{$INFO{'count'}} = shift;
+        $INFO{$$r}{'determ'}{$INFO{$$r}{'count'}} = shift;
     }
-    return $INFO{'determ'}{$INFO{'count'}};
+    return $INFO{$$r}{'determ'}{$INFO{$$r}{'count'}};
 }
 
 # This package is a TIEHANDLE package, so it can be used like this:
@@ -117,18 +142,19 @@ sub PRINTF {
 }
 
 sub READLINE {
-    # I've tried to replicate the behavior of real filehandles here
+    # I've tried to emulate the behavior of real filehandles here
     # with respect to $/, but I might have screwed something up.
     # It's kind of a mess.  Beautiful code is welcome.
  
     my $self = shift;
     my $debug = 0;
     warn "reading line, content is $self->{'content'}" if $debug;
+#warn "\$self is $self";
     return unless length $self->{'content'};
         
     if (wantarray) {
         # This handles list context, i.e. @list = <FILEHANDLE> .
-        # Wish Perl did this for me by repeated calls to READLINE.
+        # Kind of wish Perl did this for me by repeated calls to READLINE.
         my @lines;
         while (length $self->{'content'}) {
             push @lines, scalar $self->READLINE();
@@ -136,9 +162,9 @@ sub READLINE {
         return @lines;
     }
     
-    if (defined $/) {
-        if (my $l = length $/) {
-            my $spot = index($self->{'content'}, $/);
+    if (defined $/) { #/ For BBEdit coloring
+        if (my $l = length $/) {  #/ For BBEdit coloring
+            my $spot = index($self->{'content'}, $/); #/ For BBEdit coloring
             if ($spot > -1) {
                 my $out = substr($self->{'content'}, 0, $spot + $l);
                 substr($self->{'content'},0, $spot + $l) = '';
@@ -174,6 +200,7 @@ Apache::Filter - Alter the output of previous handlers
   
   <Files ~ "*\.blah">
    SetHandler perl-script
+   PerlSetVar Filter On
    PerlHandler Filter1 Filter2 Filter3
   <\Files>
   
@@ -256,6 +283,7 @@ Why is this a big deal?  Let's say you have the following setup:
 
  <Files ~ "\.boffo$">
   SetHandler perl-script
+  PerlSetVar Filter On
   PerlHandler Apache::FormatNumbers Apache::DoBigCalculation
   # The above are fake modules, you get the idea
  </Files>
@@ -327,6 +355,12 @@ If anyone's got better ideas, don't hold them back.
 
 =head1 NOTES
 
+You'll notice in the SYNOPSIS that I say C<"PerlSetVar Filter On">.  That
+information isn't actually used by this module, it's used by modules which
+are themselves filters (like Apache::SSI).  I hereby suggest that filtering
+modules use this parameter, using it as the switch to detect whether they 
+should call $r->filter_input.
+
 VERY IMPORTANT: if one handler in a stacked handler chain uses 
 C<Apache::Filter>, then THEY ALL MUST USE IT.  This means they all must
 call $r->filter_input exactly once.  Otherwise C<Apache::Filter> couldn't
@@ -341,7 +375,9 @@ or cache large pages to disk so memory requirements don't get out of hand.
 We'll see whether it's a problem.
 
 My usual alpha disclaimer: the interface here isn't stable.  So far this
-should be treated as a proof-of-concept.
+should be treated as a proof-of-concept.  In particular, some people don't
+like the idea of adding methods to the Apache:: class, while some (like me)
+think it's great.  So that may change.
 
 A couple examples of filters are provided with this distribution in the t/
 subdirectory: UC.pm converts all its input to upper-case, and Reverse.pm
@@ -353,8 +389,6 @@ $r->filename with $r->finfo.  This is pretty bizzarre.
 
 =head1 TO DO
 
-I'd like to implement the "deterministic" feature mentioned above.  
-Philippe Chiasson has convinced me that it's a good idea.
 
 =head1 BUGS
 
@@ -364,8 +398,8 @@ manipulates the handler list at runtime (using push_handlers and the
 like) might produce mayhem.  Poke around a bit in the code before you 
 try anything.
 
-This will automatically return DECLINED when $r->filename points to a
-directory.  This is just because in most cases this is what you want
+As of 0.07, Apache::Filter will automatically return DECLINED when $r->filename points to a
+directory.  This is just because in most cases this is what you want to do
 (so that mod_dir can take care of the request), and because figuring
 out the "right" way to handle directories seems pretty tough - the
 right way would allow a directory indexing handler to be a filter, which

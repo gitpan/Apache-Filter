@@ -9,6 +9,9 @@ t/docs.check/3
 t/docs.check/5
 t/docs/determ.p
 t/docs/dir/exists
+t/docs/incl.test
+t/docs/simple.r
 t/docs/simple.u
+t/docs/test.html
 t/filehandle.t
 t/real.t

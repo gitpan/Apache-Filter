@@ -109,7 +109,7 @@ sub test_outcome {
 		&{$special_tests{$i}}($text) :
 		($text eq `cat t/docs.check/$i`) );
 	&report($ok);
-	print "Result: $text" if ($ENV{TEST_VERBOSE} and not $ok);
+	print "Result: $text\n" if ($ENV{TEST_VERBOSE} and not $ok);
 }
 
 sub report {
