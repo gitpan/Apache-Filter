@@ -29,18 +29,33 @@ To install the module:
 
 Revision history for Perl extension Apache::Filter.
 
+0.09  
+   - Implemented the read(FH,$buf,$len) and getc(FH) functions for the 
+     filehandle returned by $r->filter_input [Thanks to Josua Chamos for
+     the prodding]
+
+   - Explicitly call $r->header_out('Content-Type', undef) for every
+     handle.  This helps protect filters against each other, but still
+     allows the last filter to set the content length.  See the docs.
+
+   - Does anybody besides me think it's funny that the "make test" for
+     the "deterministic" function seems to fail sporadically,
+     unreproducably, and randomly, with no apparent symptoms or
+     causes?  Anyway, I think it's probably a problem with the test,
+     and not the Filter.pm code.
+
 0.08  Mon Dec 14 01:27:26 EST 1998
    - Fixed the incompatibility with this module and subrequests, I think.
      This is important, because it means you should be able to use this with
      Apache::SSI, which uses subrequests to do its SSI includes.
 
    - I've been noticing that every once in a blue moon, I run 'make test' and
-	  the real.t tests #3 and/or #5 fail.  Then I run 'make test' again,
-	  without changing anything, and they succeed. =(  I haven't been able to
-	  find a single symptom of the failure, so I don't know at all what's
-	  causing it.  It doesn't put anything in the error_log.  I hope this
-	  doesn't happen in a production environment, or if it does perhaps you
-	  can help me figure out what's going on.
+     the real.t tests #3 and/or #5 fail.  Then I run 'make test' again,
+     without changing anything, and they succeed. =(  I haven't been able to
+     find a single symptom of the failure, so I don't know at all what's
+     causing it.  It doesn't put anything in the error_log.  I hope this
+     doesn't happen in a production environment, or if it does perhaps you
+     can help me figure out what's going on.
 
 0.07  Mon Nov 30 02:40:30 EST 1998
    - Added the $r->deterministic method, which makes it possible for more

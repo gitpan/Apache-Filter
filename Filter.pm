@@ -5,7 +5,7 @@ use Symbol;
 use Carp;
 use Apache::Constants(':common');
 use vars qw(%INFO $VERSION);
-$VERSION = '0.08';
+$VERSION = '0.09';
 
 sub _out { wantarray ? @_ : $_[0] }
 
@@ -28,19 +28,12 @@ sub Apache::filter_input {
     my ($info) = ($INFO{$$r} ||= {});
     # We use the alias $info for convenience (and speed?)
 
-    if ($debug) {
-        if ($r->is_main) {
-            warn "(\$r is main request $$r)";
-        } else {
-            warn "(\$r is sub request $$r)";
-        }
-        warn "Now \%INFO is @{[ %INFO ]}";
-    }
-    
     my $status = OK;
     $info->{'fh_in'} = gensym;
     my $count_in = $info->{'count'}++;
-
+    
+    # Prevent early filters from messing up the content-length of late filters
+    $r->header_out('Content-Length', undef);
     
     if (!$count_in and -d $r->filename()) {
         # Let mod_dir handle it - does this work?
@@ -181,8 +174,24 @@ sub READLINE {
     }
 }
 
-sub READ { croak "READ method is not implemented in ", __PACKAGE__ }
-sub GETC { croak "GETC method is not implemented in ", __PACKAGE__ }
+sub READ {
+    my $self = shift;
+    my $buf = \($_[0]); shift;
+    my $len = shift;
+    my $offset = shift || 0;
+    
+    substr($$buf, $offset) = substr($self->{'content'}, 0, $len);
+    substr($self->{'content'}, 0, $len) = '';
+    return length substr($$buf, $offset);
+}
+
+sub GETC {
+    my $self = shift;
+    
+    my $char = substr($self->{'content'}, 0, 1);
+    substr($self->{'content'}, 0, 1) = '';
+    return $char;
+}
 
 1;
 
@@ -385,7 +394,14 @@ prints the lines of its input reversed.
 
 I tried using $r->finfo for file-test operators, but they didn't seem to
 work.  If they start working or I figure out what's going on, I'll replace
-$r->filename with $r->finfo.  This is pretty bizzarre.
+$r->filename with $r->finfo.  This is pretty bizarre.
+
+Finally, a caveat: in version 0.09 I started explicitly setting the
+Content-Length to undef inside $r->filter_input.  This prevents early
+filters from incorrectly setting the content length, which will almost
+certainly be wrong if there are any filters after it.  This means that
+if you write any filters which set the content length, they should do
+it B<after> the $r->filter_input call.
 
 =head1 TO DO
 

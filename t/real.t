@@ -38,15 +38,17 @@ use vars qw($TEST_NUM $BAD);
 use LWP::UserAgent;
 use Carp;
 
-my %requests = (
-	3  => 'simple.u',
-	4  => 'dir/',  # A directory
-	5  => 'determ.p',
-);
+my %requests = 
+    (
+     3  => 'simple.u',
+     4  => 'dir/',  # A directory
+     5  => 'determ.p',
+    );
 
-my %special_tests = (
-	4 => \&index_ok,
-);
+my %special_tests = 
+    (
+     4 => \&index_ok,
+    );
 
 print "1.." . (2 + keys %requests) . "\n";
 
