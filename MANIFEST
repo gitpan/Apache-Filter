@@ -3,5 +3,10 @@ Filter.pm
 MANIFEST
 Makefile.PL
 README
-lib/Apache/UC.pm
-test.pl
+SSI.pm
+t/Reverse.pm
+t/UC.pm
+t/docs.check/3
+t/docs/simple.u
+t/filehandle.t
+t/real.t

@@ -4,7 +4,7 @@ package Apache::UC;
 # that uses the Apache::Filter features.
 
 use strict;
-use Apache::Constants qw(:common OPT_EXECCGI);
+use Apache::Constants qw(:common);
 
 
 sub handler {

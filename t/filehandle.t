@@ -19,7 +19,7 @@ $loaded = 1;
 print FH "line1\n";
 &report(<FH> eq "line1\n");
 
-print FH "line1\n", "line2";
+print FH "line1", "\n", "line2";
 &report(<FH> eq "line1\n");
 &report(<FH> eq "line2");
 

@@ -5,11 +5,12 @@ mod_perl.
 
 It provides functionality similar to Apache::OutputChain, but with a nicer
 interface (filters are listed in forward order, not reverse, in httpd.conf;
-and you don't need two seperate modules, one which chains and one which
-doesn't).
+and you don't need to write two separate modules, one which chains and one
+which doesn't [e.g. Apache::SSI and Apache::SSIChain]).
 
-An example of a filter is provided with this distribution: UC.pm converts
-all its input to upper-case.
+A couple examples of filters are provided with this distribution in the t/
+subdirectory: UC.pm converts all its input to upper-case, and Reverse.pm
+prints the lines of its input reversed.
 
 For more specific information, please see the documentation inside Filter.pm,
 by doing "pod2txt Filter.pm", or "perldoc Apache::Filter" once you've

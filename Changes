@@ -1,5 +1,33 @@
 Revision history for Perl extension Apache::Filter.
 
+0.02
+   - Added boolean function $r->changed_since($time) to allow modules 
+     like Apache::Registry to cache input.
+   
+   - When $r->filter_input is called in a list context, it now returns two
+     values: a filehandle containing the filter's input (as in the previous 
+     version), and a status code from Apache::Constants.  This lets filters 
+     do things like:
+     
+        my ($fh, $status) = $r->filter_input();
+        return $status unless $status == OK;
+        while (<$fh>) {
+           # Proceed
+           ...
+        }
+    
+   - When performing the open() for the first filter in the list, the return
+     value is now checked.
+    
+   - $r->send_http_header() will now be called when the _last_ filter calls
+     $r->filter_input, not when the _first_ one does.  This lets each filter
+     add to the outgoing headers, potentially changing the content-type or
+     whatever.  I believe Gerald Richter suggested this.
+   
+   - The Apache::UC (upper-casing) and new Apache::Reverse (line-reversing)
+     filter modules are now in the t/ subdirectory, not the lib/ directory.
+     Thus they shouldn't get installed when you do "make install".
+
 0.01  Wed Oct 28 11:17:15 1998
-	- original version; created by h2xs 1.18
+   - original version; created by h2xs 1.18
 

@@ -3,13 +3,17 @@ package Apache::Filter;
 use strict;
 use Symbol;
 use Carp;
+use Apache::Constants(':common');
 use vars qw(%INFO $VERSION);
-$VERSION = '0.01';
+$VERSION = '0.02';
+
+sub _out { wantarray ? @_ : $_[0] }
 
 sub Apache::filter_input {
     my $r = shift;
     my $debug = 0;
     
+    my $status = OK;
     $INFO{'fh_in'} = gensym;
     
     if ($INFO{'count'}) {
@@ -22,13 +26,18 @@ sub Apache::filter_input {
     } else {
         # This is the first filter in the chain.  We just open $r->filename.
         
-        open (*{$INFO{'fh_in'}}, $r->filename());
+        unless (-e $r->filename()) {
+            $r->log_error($r->filename() . " not found");
+            return _out undef, NOT_FOUND;
+        }
+        unless ( open (*{$INFO{'fh_in'}}, $r->filename()) ) {
+            $r->log_error("Can't open " . $r->filename() . ": $!");
+            return _out undef, FORBIDDEN;
+        }
     }
     
     unless ($INFO{'count'}) {
         $r->register_cleanup(sub {%Apache::Filter::INFO=()});
-        $r->send_http_header();
-        
         untie *STDOUT;
     }
         
@@ -37,12 +46,20 @@ sub Apache::filter_input {
     if (@{$r->get_handlers('PerlHandler')} == $INFO{'count'}) {  #YUCK!
         # This is the last filter in the chain, so let STDOUT go to the browser.
         tie *STDOUT, ref($r), $r;
+        $r->send_http_header();
     } else {
         # Capture the output so we can feed it to the next filter.
         tie *STDOUT, __PACKAGE__;
     }
     
-    return $INFO{'fh_in'};
+    return _out $INFO{'fh_in'}, OK;
+}
+
+sub Apache::changed_since {
+    return 1 if $INFO{'count'} > 1;
+    my $r = shift;
+    return 1 if ((stat $r->filename)[9] > shift);
+    return 0;
 }
 
 # This package is a TIEHANDLE package, so it can be used like this:
@@ -110,8 +127,7 @@ Apache::Filter - Alter the output of previous handlers
 
 =head1 SYNOPSIS
 
- ##### In httpd.conf:
-
+  #### In httpd.conf:
   PerlModule Apache::Filter;
   # That's it - this isn't a handler.
   
@@ -119,9 +135,17 @@ Apache::Filter - Alter the output of previous handlers
    SetHandler perl-script
    PerlHandler Filter1 Filter2 Filter3
   <\Files>
- 
- #### In Filter1, Filter2, and Filter3:
+  
+  #### In Filter1, Filter2, and Filter3:
   my $fh = $r->filter_input();
+  while (<$fh>) {
+    s/ something / something else /;
+    print;
+  }
+  
+  #### or, alternatively:
+  my ($fh, $status) = $r->filter_input();
+  return $status unless $status == OK;  # The Apache::Constants OK
   while (<$fh>) {
     s/ something / something else /;
     print;
@@ -147,6 +171,43 @@ are "Filter-aware," i.e. they each call $r->filter_input() exactly
 once, before they start printing to STDOUT.  There should be almost
 no overhead for doing this when there's only one element in the chain.
 
+=head1 METHODS
+
+This module doesn't create a class of its own - rather, it adds some
+methods to the Apache:: class.  Thus, it's really a mix-in package
+that just adds functionality to the $r request object.
+
+=over 4
+
+=item * $r->filter_input()
+
+This method will give you a filehandle that contains either the file 
+requested by the user ($r->filename), or the output of a previous filter.
+If called in a scalar context, that filehandle is all you'll get back.  If
+called in a list context, you'll also get an Apache status code (OK, 
+NOT_FOUND, or FORBIDDEN) that tells you whether $r->filename was successfully
+found and opened.
+
+
+=item * $r->changed_since($time)
+
+Returns true or false based on whether the current input seems like it 
+has changed since C<$time>.  Currently what this means is that if we're
+the first handler in the chain, and the file pointed to by 
+C<$r-E<gt>filename> hasn't changed since the time given, then we return
+false.  Otherwise we return true.
+
+In the future, there might be a way for filters to specify whether they're
+"deterministic" or not (given identical input at different times, a
+deterministic filter will always return the same output).  So if you had
+a filter chain in which the first filter just converted all its input
+to upper-case, and then the second filter applied some more complicated
+procedure, the second filter could implement a scheme that cached the
+output of the upper-caser by checking to see whether only deterministic
+filters had filtered its input.  Such a feature seems frivolous to me though,
+so don't expect it unless you can convince me that it's a good idea.
+
+=back
 
 
 =head1 HEADERS
@@ -157,34 +218,42 @@ your page.  This is so obvious that the previous sentence should be
 a lot shorter.
 
 So the current solution is to have _none_ of the filters send the headers,
-and this module will send them for you when the first filter calls
+and this module will send them for you when the last filter calls
 $r->filter_input().  You should still set up the content-type (using
 $r->content_type), and any other headers you want to send, before calling
 $r->filter_input().  filter_input will simply call $r->send_http_header()
 with no arguments to send whatever headers you have set.
 
-One downside of this is that subsequent filters in the stack will probably
-call $r->content_type for no reason, but say la vee.  If anyone's got
-better ideas, don't hold them back.
+One downside of this is that all the filters in the stack will probably
+call $r->content_type, most of them for no reason, but say la vee.  
+If anyone's got better ideas, don't hold them back.
 
 =head1 NOTES
 
-It took all my gusto to figure out how to use tie a filehandle in such 
-a way that it could be saved in a scalar.  I finally figured out how to
-use the Symbol.pm module to do this, in what I think is a very neat and
-efficient way.  But because I'm sort of stumbling in the dark on this, 
-it would be great if someone could check my work.  (Astonishingly, 
-L<perltie(1)> doesn't say what kinds of things are allowed as the first 
-argument to tie() for tying a filehandle!)
+VERY IMPORTANT: if one handler in a stacked handler chain uses 
+C<Apache::Filter>, then THEY ALL MUST USE IT.  This means they all must
+call $r->filter_input exactly once.  Otherwise C<Apache::Filter> couldn't
+capture the output of the handlers properly, and it wouldn't know when
+to release the output to the browser.
 
 The output of each filter is accumulated in memory before it's passed
 to the next filter, so memory requirements might be large for large pages.
 I'm not sure whether Apache::OutputChain is subject to this same behavior.
 In future versions I might find a way around this, or cache large pages
-to disk so memory requirements don't get out of hand.
+to disk so memory requirements don't get out of hand.  We'll see whether
+it's a problem.
 
 My usual alpha disclaimer: the interface here isn't stable.  So far this
 should be treated as a proof-of-concept.
+
+A couple examples of filters are provided with this distribution in the t/
+subdirectory: UC.pm converts all its input to upper-case, and Reverse.pm
+prints the lines of its input reversed.
+
+I tried using $r->finfo for file-test operators, but they didn't seem to
+work.  If they start working or I figure out what's going on, I'll replace
+$r->filename with $r->finfo.  This is pretty bizzarre, because it worked
+fine in Apache::SSI (shrug).
 
 =head1 BUGS
 
