@@ -3,7 +3,7 @@ Filter.pm
 MANIFEST
 Makefile.PL
 README
-lib/Apache/PerlRunFilter.pm
+lib/Apache/RegistryFilter.pm
 t/CacheTest.pm
 t/FHandle.pm
 t/Reverse.pm

@@ -1,3 +1,10 @@
+Version: 1.008  Date: 2000/04/13 00:53:53
+   Added the Apache::RegistryFilter module, which provides support for
+   Registry scripts in a Filter chain.
+   
+   Fixed up the Makefile.PL file a bit.
+
+
 Version: 1.007  Date: 2000/03/24 15:03:14
    Changed several $r->filename instances to $r->finfo.  This will speed
    up operation.  I did this once in the past, but had to change it back

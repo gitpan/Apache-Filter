@@ -173,7 +173,7 @@ AddType text/html .html
 # Look in ./blib/lib
 PerlModule ExtUtils::testlib
 PerlModule Apache::Filter
-PerlModule Apache::PerlRunFilter;
+PerlModule Apache::RegistryFilter;
 PerlRequire $DIR/t/UC.pm
 PerlRequire $DIR/t/Reverse.pm
 PerlRequire $DIR/t/CacheTest.pm
@@ -208,7 +208,7 @@ PerlHandler Apache::UC Apache::Reverse
 <Files ~ "\\.pl\$">
  SetHandler perl-script
  PerlSetVar Filter on
- PerlHandler Apache::PerlRunFilter Apache::UC
+ PerlHandler Apache::RegistryFilter Apache::UC
 </Files>
 
 

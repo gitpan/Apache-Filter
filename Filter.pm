@@ -5,7 +5,7 @@ use Symbol;
 use Carp;
 use Apache::Constants(':common');
 use vars qw($VERSION);
-$VERSION = sprintf '%d.%03d', q$Revision: 1.7 $ =~ /: (\d+).(\d+)/;
+$VERSION = sprintf '%d.%03d', q$Revision: 1.8 $ =~ /: (\d+).(\d+)/;
 
 sub _out { wantarray ? @_ : $_[0] }
 
@@ -267,9 +267,10 @@ no overhead for doing this when there's only one element in the chain.
 Currently the following public modules are Filter-aware.  Please tell
 me of others you know about.
 
+ Apache::Registry (using Apache::RegistryFilter, included here)
  Apache::SSI
+ Apache::ASP
  HTML::Mason
- Apache::Registry (preliminary support)
 
 
 =head1 METHODS

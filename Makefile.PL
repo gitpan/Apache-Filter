@@ -35,13 +35,22 @@ open LOC, ">t/httpd.loc" or die "can't write t/httpd.loc: $!";
 print LOC map {"$_=$conf{$_}\n"} keys %conf;
 close LOC;
 
+my $module = 'Apache::Filter';
+my ($name, $dir);
+($name = $module) =~ s/.*::(\w+)/$1.pm/;
+($dir = $module) =~ s/::/-/g;
+
 WriteMakefile
   (
    'NAME'	=> 'Apache::Filter',
-   'VERSION_FROM' => 'Filter.pm', # finds $VERSION
+   'VERSION_FROM' => $name, # finds $VERSION
    'dist' => { COMPRESS=>"gzip", 
 	       SUFFIX=>"gz", 
-               PREOP=>'rm -f Changes; cvs log Filter.pm | $(PERL) -MCVS::Parse -e "prettylog" > Changes',
+               PREOP=>('rm -f Changes README; '.
+                       "cvs log $name | \$(PERL) -MCVS::Parse -e prettylog > Changes; ".
+                       "pod2text -80 < $name > README; ".
+                       "cp -f Changes README $dir-\$(VERSION); "
+                      ),
              },
    'clean' => {FILES => "t/httpd.loc"},
   );
