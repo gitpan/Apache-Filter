@@ -1,58 +1,18 @@
 use ExtUtils::MakeMaker;
-# See lib/ExtUtils/MakeMaker.pm for details of how to influence
-# the contents of the Makefile that is written.
+use lib 't/lib';  # distributed here until changes are incorporated into the real version
+use Apache::test;
 
-$|=1;
-
-my $default = $ENV{'APACHE'} || which('apache') || which('httpd') || '/usr/lib/httpd/httpd';
-
-print("\nFor testing purposes, please give the full path to an httpd\n",
-      "with mod_perl enabled.  The path defaults to \$ENV{APACHE}, if present.\n");
-
-my %conf;
-
-do {
-  print "\n [$default]: ";
-  chomp ($conf{httpd} = <STDIN>);
-  $conf{httpd} ||= $default;
-} until -e $conf{httpd} || !print("$conf{httpd} not found\n");
-
-
-# Get default user (apache doesn't like to run as root, special-case it)
-$default = ($< == 0 ? 'nobody' : getpwuid($<) || 'nobody');
-print "User to run tests under [$default]: ";
-chomp ($conf{user} = <STDIN>);
-$conf{user} ||= $default;
-
-$default = getgrgid((getpwnam($conf{user}))[3]) || "nobody";
-print "Group to run tests under [$default]: ";
-chomp ($conf{group} = <STDIN>);
-$conf{group} ||= $default;
-
-$default = 8228;
-print "Port to run tests under [$default]: ";
-chomp ($conf{port} = <STDIN>);
-$conf{port} ||= $default;
-
-
-open LOC, ">t/httpd.loc" or die "can't write t/httpd.loc: $!";
-print LOC map {"$_=$conf{$_}\n"} keys %conf;
-close LOC;
+my %params = Apache::test->get_test_params();
+chomp (my $cwd = `pwd`);
+Apache::test->write_httpd_conf
+    (%params,
+     include => do {local $/; <DATA>});
+*MY::test = sub { Apache::test->MM_test(%params) };
 
 my $module = 'Apache::Filter';
 my ($name, $dir);
 ($name = $module) =~ s/.*::(\w+)/$1.pm/;
 ($dir = $module) =~ s/::/-/g;
-
-# Find an executable in the PATH.
-sub which {
-  foreach (map { "$_/$_[0]" } split /:/, $ENV{PATH}) {
-    next unless m,^/,;
-    return $_ if -x;
-  }
-}
-
-
 
 WriteMakefile
   (
@@ -66,5 +26,53 @@ WriteMakefile
                        "cp -f Changes README $dir-\$(VERSION); "
                       ),
              },
-   'clean' => {FILES => "t/httpd.loc t/error_log"},
+   'clean' => {FILES => "t/httpd t/httpd.conf t/error_log"},
   );
+
+##################################################################
+__DATA__
+
+PerlModule Apache::Filter
+PerlModule Apache::RegistryFilter
+PerlModule Apache::UC
+PerlModule Apache::Reverse
+PerlModule Apache::CacheTest
+PerlModule Apache::FHandle
+PerlModule Apache::ChangeHeader
+
+# Default - this includes directories too
+SetHandler perl-script
+PerlHandler Apache::UC Apache::Reverse
+
+
+<FilesMatch "\.ur$">
+ SetHandler perl-script
+ PerlHandler Apache::UC Apache::Reverse
+</FilesMatch>
+
+<FilesMatch "\.r$">
+ SetHandler perl-script
+ PerlHandler Apache::Reverse
+</FilesMatch>
+
+<FilesMatch "\.p$">
+ SetHandler perl-script
+ PerlHandler Apache::UC Apache::CacheTest
+</FilesMatch>
+
+<FilesMatch "\.fh$">
+ SetHandler perl-script
+ PerlHandler Apache::FHandle
+</FilesMatch>
+
+<FilesMatch "\.h$">
+ SetHandler perl-script
+ PerlHandler Apache::ChangeHeader
+</FilesMatch>
+
+<FilesMatch "\.pl$">
+ SetHandler perl-script
+ PerlSetVar Filter on
+ PerlHandler Apache::RegistryFilter Apache::UC
+</FilesMatch>
+

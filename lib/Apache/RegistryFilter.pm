@@ -1,6 +1,7 @@
 package Apache::RegistryFilter;
 
 use strict;
+#use lib '/home/ken/modperl/lib';
 use Apache::RegistryNG;
 use Apache::Constants qw(:common);
 use Symbol;
@@ -8,20 +9,25 @@ use vars qw($Debug @ISA);
 
 @ISA = qw(Apache::RegistryNG);
 
+sub handler ($$) {
+  my ($class, $r) = (shift, shift->filter_register);
+  $class->SUPER::handler($r);
+}
 
 sub readscript {
   my $pr = shift;
+  my $r = $pr->{r};
   
   # Get a filehandle to the Perl code
   my $fh;
-  if (lc $pr->dir_config('Filter') eq 'on') {
+  if (lc $r->dir_config('Filter') eq 'on') {
     my $status;
-    ($fh, $status) = $pr->filter_input();
-    $pr->notes('FilterRead' => 'this_time');
+    ($fh, $status) = $r->filter_input();
+    $r->notes('FilterRead' => 'this_time');
     return $status unless $status == OK;
   } else {
     $fh = gensym;
-    open $fh, $pr->filename or die $!;
+    open $fh, $r->filename or die $!;
   }
   
   local $/;
@@ -30,11 +36,12 @@ sub readscript {
 
 sub run {
   my $pr = shift;
+  my $r = $pr->{r};
 
   # If the script was read & compiled in this child in a previous run,
   # we won't have called filter_input().  Call it now.
-  unless ($pr->notes('FilterRead') eq 'this_time') {
-    $pr->filter_input(handle => {}) 
+  unless ($r->notes('FilterRead') eq 'this_time') {
+    $r->filter_input(handle => {}) 
   }
 
   # We temporarily override the header-sending routines to make them
@@ -97,7 +104,7 @@ be sent directly to the browser instead of filtered through the filter
 chain.  This is okay if your script is the last filter in the chain,
 but clearly it won't work otherwise.
 
-==back
+=back
 
 =head1 CAVEATS
 

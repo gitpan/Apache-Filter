@@ -1,3 +1,23 @@
+Version: 1.013  Date: 2000/11/05 04:37:10
+   Cleaned up new implementation begun in 1.012.  Revised documentation
+   accordingly.
+   
+   Added overloaded method for $r->print().
+
+
+Version: 1.012  Date: 2000/09/07 05:17:27
+   (not released publically)
+   
+   Major reorganization of code in Apache::Filter.  Now Apache::Filter is
+   a subclass of Apache, which allows much smoother overriding of the
+   functionality that needs to be changed for filtering.  In particular,
+   send_http_headers() and send_fd() behave well now.
+   
+   Added new filter_register() method, which must always be called.
+   filter_input() isn't necessary anymore when you don't actually need
+   the input filehandle it returns.
+
+
 Version: 1.011  Date: 2000/06/24 23:38:21
    Fixed a bug in which Apache::RegistryFilter wasn't properly
    registering itself with Apache::Filter on the 2nd, 3rd, etc. times a

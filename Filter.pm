@@ -2,13 +2,11 @@ package Apache::Filter;
 
 use strict;
 use Symbol;
-use Carp;
 use Apache::Constants(':common');
-use vars qw($VERSION);
-$VERSION = sprintf '%d.%03d', q$Revision: 1.11 $ =~ /: (\d+)\.(\d+)/;
+use vars qw($VERSION @ISA);
+$VERSION = sprintf '%d.%03d', q$Revision: 1.13 $ =~ /: (\d+)\.(\d+)/;
+@ISA = qw(Apache);
  
-sub _out { wantarray ? @_ : $_[0] }
-
 # $r->pnotes('FilterInfo') contains a hashref ($info) which works like member data of $r.
 # 
 # $info->{'fh_in'} is a Apache::Filter filehandle containing the output of the previous filter
@@ -18,107 +16,142 @@ sub _out { wantarray ? @_ : $_[0] }
 # $info->{'determ'}{$i} contains a true value if handler number $i has declared that it
 #                     is deterministic (see docs).
 
+sub Apache::filter_register {
+  my $r = shift;
+  
+  # Apache->request($r) doesn't seem to work, so we cache the derived $r in
+  # pnotes().  Unfortunately this means that Apache->request in other
+  # code will return the regular $r, not the Apache::Filter object.
+  
+  $r = Apache->request->pnotes('filterobject') if Apache->request->pnotes('filterobject');
+  unless ($r->isa(__PACKAGE__)) {
+    Apache->request($r = bless {_r => $r});
+  }
+  Apache->request->pnotes(filterobject => $r);
+  $r->{'count'}++;
+  #warn "************ registering @{[$r->filename]}: count=$r->{count}\n";
 
-sub Apache::filter_input {
-    my $r = shift;
-    my %args = @_;
-    my $debug = 0;
+  # Don't touch anything if there is only one filter in the chain
+  return $r if $r->is_first_filter and $r->is_last_filter;
 
-    # We use the alias $info for convenience and speed
-    unless (defined $r->pnotes('FilterInfo')) {
-	$r->pnotes('FilterInfo', {});
-    }
-    my $info = $r->pnotes('FilterInfo');
-    warn "*******info for @{[ $r->filename() ]} is @{[ %$info ]}" if $debug;
-
-    my $status = OK;
-    $info->{'fh_in'} = gensym;
-    my $count_in = $info->{'count'}++;
-    
-    # Prevent early filters from messing up the content-length of late filters
-    $r->header_out('Content-Length', undef);
-
-    unless (exists $args{handle}) {
-      if (!$count_in and -d $r->finfo) {
-        # Let mod_dir handle it - does this work?
-        $info->{'is_dir'} = 1;
-      }
-      if ($info->{'is_dir'}) {
-        return _out undef, DECLINED;
-      }
-    }
-    
-    if ($count_in) {
-        # A previous filter has written to STDOUT.
-        # We'll assume it's done writing.
-        # Thus we should turn STDOUT into fh_in.
-        
-        warn "Turning STDOUT (@{[ref tied *STDOUT]}) into filter_fh_in" if $debug;
-        tie *{$info->{'fh_in'}}, __PACKAGE__, tied *STDOUT;
-        
-    } else {
-      # This is the first filter in the chain.  We just open $r->filename.
-      
-      if (exists $args{handle}) {
-	$info->{'fh_in'} = $args{handle};
-      } else {
-        warn "@{[$r->filename]}: This is the first filter" if $debug;
-        if (not -e $r->finfo) {
-	    $r->log_error($r->filename() . " not found");
-	    ($info->{'fh_in'}, $status) = (undef, NOT_FOUND);
-        } elsif ( not open (*{$info->{'fh_in'}}, $r->filename()) ) {
-	    $r->log_error("Can't open " . $r->filename() . ": $!");
-	    ($info->{'fh_in'}, $status) = (undef, FORBIDDEN);
-        }
-      }
-        
-      warn "Untie()ing STDOUT" if $debug;
-      $info->{'old_stdout'} = ref tied(*STDOUT);
-      untie *STDOUT;
-    }
-    
-    if (@{$r->get_handlers('PerlHandler')} == $info->{'count'}) {
-        # This is the last filter in the chain, so restore STDOUT to whatever
-        # it was originally (usually the browser, unless this is a sub-request)
-        warn 'Tie()ing STDOUT to ',__PACKAGE__,'::Final for finish' if $debug;
-	tie *STDOUT, __PACKAGE__ . '::Final';
-
-    } else {
-        # There are more filters after this one.
-        # Capture the output so we can feed it to the next filter.
-        warn "Tie()ing STDOUT to ", __PACKAGE__ if $debug;
-        tie *STDOUT, __PACKAGE__;
-    }
-
-    warn "END info is @{[%$info]} " if $debug;
-    return _out $info->{'fh_in'}, $status;
+  if ($r->is_first_filter) {
+    $r->{browser} = ref tied(*STDOUT);
+  } else {
+    $r->rotate_filters;
+  }
+  
+  if ($r->is_last_filter) {
+    #warn "Tie()ing STDOUT to '$r->{browser}' for finish";
+    untie *STDOUT;
+    tie *STDOUT, $r->{browser} if $r->{browser}; # sfio doesn't tie STDOUT
+  } else {
+    #warn "Tie()ing STDOUT to ", ref($r);
+    tie *STDOUT, ref $r;
+  }
+  
+  return $r;
 }
 
-sub Apache::changed_since {
-    my $r = shift;
-    my $info = $r->pnotes('FilterInfo');
-    
+sub rotate_filters {
+  my $self = shift;
+  
+  #warn "Turning STDOUT (@{[ref tied *STDOUT]}) into fh_in";
+  delete $self->{'fh_in'};
+  $self->{'fh_in'} = gensym;
+  tie *{$self->{'fh_in'}}, ref($self), tied *STDOUT;
+  local $^W;  # Ignore "untie attempted while %d inner references still exist" warning from next line
+  untie *STDOUT;
+}
+
+sub filter_input {
+  my $self = shift;
+
+  # Don't handle directories
+  if ($self->is_first_filter and -d $self->finfo) {
+    $self->{'is_dir'} = 1; # Let mod_dir handle it
+  }
+  if ($self->{'is_dir'}) {
+    $self->{fh_in} = undef;
+    return wantarray ? ($self->{fh_in}, DECLINED) : $self->{fh_in};
+  }
+
+  my $status = OK;
+  
+  unless (exists $self->{fh_in}) {
+    # Open $self->filename
+    #warn "+++++++++++ @{[$self->filename]}: This is the first filter";
+    $self->{fh_in} = gensym;
+    if (not -e $self->finfo) {
+      $self->log_error($self->filename() . " not found");
+      $status = NOT_FOUND;
+    } elsif ( not open (*{$self->{'fh_in'}}, $self->filename()) ) {
+      $self->log_error("Can't open " . $self->filename() . ": $!");
+      $status = FORBIDDEN;
+    }
+  }
+
+  #warn "END info is @{[%$self]} ";
+  return wantarray ? ($self->{fh_in}, $status) : $self->{fh_in};
+}
+
+sub is_last_filter {
+  my $self = shift;
+  return $self->{count} == @{$self->get_handlers('PerlHandler')};
+}
+
+sub is_first_filter {
+  my $self = shift;
+  return $self->{count} == 1;
+}
+
+sub send_http_header {
+  my $self = shift;
+  return unless $self->is_last_filter;
+
+  # Prevent early filters from messing up the content-length of late filters
+  $self->header_out('Content-Length'=> undef);
+  return $self->SUPER::send_http_header(@_);
+}
+
+sub send_fd {
+  my $self = shift;
+  if ($self->is_last_filter) {
+    # Can send directly to client
+    $self->SUPER::send_fd(@_);
+  } else {
+    my $fd = shift;
+    print while <$fd>;
+  }
+}
+
+sub print {
+  my $self = shift;
+  $self->send_http_header() unless $self->sent_header;
+  print STDOUT @_;
+}
+
+sub changed_since {
+    my $self = shift;
     # If any previous handlers are non-deterministic, then the content is 
     # volatile, so tell them it's changed.
 
-    if ($info->{'count'} > 1) {
-        return 1 if grep {not $info->{'determ'}{$_}} (1..$info->{'count'}-1);
+    if ($self->{'count'} > 1) {
+        return 1 if grep {not $self->{'determ'}{$_}} (1..$self->{'count'}-1);
     }
     
     # Okay, only deterministic handlers have touched this.  If the file has
     # changed since the given time, return true.  Otherwise, return false.
-    return 1 if ((stat $r->finfo)[9] > shift);
+    return 1 if ((stat $self->finfo)[9] > shift);
     return 0;
 }
 
-sub Apache::deterministic {
-    my $r = shift;
-    my $info = $r->pnotes('FilterInfo');
+sub deterministic {
+    my $self = shift;
 
     if (@_) {
-        $info->{'determ'}{$info->{'count'}} = shift;
+        $self->{'determ'}{$self->{'count'}} = shift;
     }
-    return $info->{'determ'}{$info->{'count'}};
+    return $self->{'determ'}{$self->{'count'}};
 }
 
 # This package is a TIEHANDLE package, so it can be used like this:
@@ -149,7 +182,7 @@ sub READLINE {
  
     my $self = shift;
     my $debug = 0;
-    warn "reading line, content is $self->{'content'}" if $debug;
+    warn "reading line from $self, content is $self->{'content'}" if $debug;
     return unless length $self->{'content'};
         
     if (wantarray) {
@@ -199,41 +232,6 @@ sub GETC {
     return $char;
 }
 
-# The following subclass is what we tie STDOUT to in the final
-# handler.  Its purpose is to simply watch for the first output to
-# STDOUT, at which point we should send the HTTP headers and re-tie
-# STDOUT to the browser.  I could have implemented this as flags
-# within the regular Apache::Filter class, but then we'd be slowed
-# down by checking the flags every time we print.
-
-package Apache::Filter::Final;
-use vars qw(@ISA);
-@ISA = qw(Apache::Filter);
-
-sub finish {
-  shift;
-  my $name = shift;
-  my $r = Apache->request;
-  $r->send_http_header;
-
-  my $info = $r->pnotes('FilterInfo');
-  #warn "Tie()ing STDOUT to $info->{'old_stdout'} for finish";
-  if ($info->{'old_stdout'}) {
-    # Running under stdio, restore previous tie
-    my $stdout = tie *STDOUT, $info->{'old_stdout'};
-    $stdout->$name(@_);
-  } else {
-    # Running under sfio, just untie
-    untie *STDOUT;
-    eval "\L$name\E(\@_)";
-  }
-}
-
-
-sub PRINT  { my $s = shift; $s->finish('PRINT',  @_ ) }
-sub PRINTF { my $s = shift; $s->finish('PRINTF', @_ ) }
-
-
 1;
 
 __END__
@@ -255,15 +253,17 @@ Apache::Filter - Alter the output of previous handlers
   </Files>
   
   #### In Filter1, Filter2, and Filter3:
-  my $fh = $r->filter_input();
+  $r = $r->filter_register();  # Required
+  my $fh = $r->filter_input(); # Optional (you might not need the input FH)
   while (<$fh>) {
     s/ something / something else /;
     print;
   }
   
   #### or, alternatively:
-  my ($fh, $status) = $r->filter_input();
-  return $status unless $status == OK;  # The Apache::Constants OK
+  $r = $r->filter_register();
+  my ($fh, $status) = $r->filter_input(); # Get status information
+  return $status unless $status == OK;
   while (<$fh>) {
     s/ something / something else /;
     print;
@@ -271,7 +271,7 @@ Apache::Filter - Alter the output of previous handlers
 
 =head1 DESCRIPTION
 
-Each of the handlers Filter1, Filter2, and Filter3 will make a call
+In basic operation, each of the handlers Filter1, Filter2, and Filter3 will make a call
 to $r->filter_input(), which will return a filehandle.  For Filter1,
 the filehandle points to the requested file.  For Filter2, the filehandle
 contains whatever Filter1 wrote to STDOUT.  For Filter3, it contains
@@ -285,7 +285,7 @@ Apache::OutputChain.
 When you've got this module, you can use the same handler both as
 a stand-alone handler, and as an element in a chain.  Just make sure
 that whenever you're chaining, B<all> the handlers in the chain
-are "Filter-aware," i.e. they each call $r->filter_input() exactly
+are "Filter-aware," i.e. they each call $r->filter_register() exactly
 once, before they start printing to STDOUT.  There should be almost
 no overhead for doing this when there's only one element in the chain.
 
@@ -301,11 +301,20 @@ me of others you know about.
 
 =head1 METHODS
 
+Apache::Filter is a subclass of Apache, so all Apache methods are available.
+
 This module doesn't create an Apache handler class of its own - rather, it adds some
 methods to the Apache:: class.  Thus, it's really a mix-in package
 that just adds functionality to the $r request object.
 
 =over 4
+
+=item * $r = $r->filter_register()
+
+Every Filter-aware module must call this method exactly once, so that
+Apache::filter can properly rotate its filters from previous handlers,
+and so it can know when the output should eventually go to the
+browser.
 
 =item * $r->filter_input()
 
@@ -316,11 +325,6 @@ called in a list context, you'll also get an Apache status code (OK,
 NOT_FOUND, or FORBIDDEN) that tells you whether $r->filename was successfully
 found and opened.  If it was not, the filehandle returned will be undef.
 
-If for some reason you have already opened the filehandle you'll want
-to read from, call C<$r-E<gt>filter_input(handle=>$handle)>, and
-C<filter_input()> won't try to open any files.  It will pass your
-handle back to you.
-
 =item * $r->changed_since($time)
 
 Returns true or false based on whether the current input seems like it 
@@ -329,8 +333,10 @@ is this: if the file pointed to by C<$r-E<gt>finfo> hasn't changed since
 the time given, and if all previous filters in the chain are deterministic
 (see below), then we return false.  Otherwise we return true.
 
+This method is meant to be useful in implementing caching schemes.
+
 A caution: always call the C<changed_since()> and C<deterministic()> methods
-B<AFTER> the C<filter_input()> method.  This is because Apache::Filter uses a 
+B<AFTER> the C<filter_register()> method.  This is because Apache::Filter uses a 
 crude counting method to figure out which handler in the chain is currently 
 executing, and calling these routines out of order messes up the counting.
 
@@ -391,7 +397,7 @@ The guts of the modules would look something like this:
  }
 
 A caution: always call the C<changed_since()> and C<deterministic()> methods
-B<AFTER> the C<filter_input()> method.  This is because Apache::Filter uses a 
+B<AFTER> the C<filter_register()> method.  This is because Apache::Filter uses a 
 crude counting method to figure out which handler in the chain is currently 
 executing, and calling these routines out of order messes up the counting.
 
@@ -401,21 +407,12 @@ executing, and calling these routines out of order messes up the counting.
 
 =head1 HEADERS
 
-In order to make a decent web page, each of the filters shouldn't
-call $r->send_http_header() or you'll get lots of headers all over 
-your page.  This is so obvious that the previous sentence should be
-a lot shorter.
-
-So the current solution is to have _none_ of the filters send the headers,
-and this module will send them for you when the last filter calls
-$r->filter_input().  You should still set up the content-type (using
-$r->content_type), and any other headers you want to send, before calling
-$r->filter_input().  filter_input will simply call $r->send_http_header()
-with no arguments to send whatever headers you have set.
-
-One downside of this is that all the filters in the stack will probably
-call $r->content_type, most of them for no reason, but say la vee.  
-If anyone's got better ideas, don't hold them back.
+In previous releases of this module, it was dangerous to call
+$r->send_http_header(), because a previous/postvious filter might also
+try to send headers, and then you'd have duplicate headers getting
+sent.  In current releases you can simply send the headers.  If the
+current filter is the last filter, the headers will be sent as usual,
+and otherwise send_http_header() is a no-op.
 
 =head1 NOTES
 
@@ -423,11 +420,14 @@ You'll notice in the SYNOPSIS that I say C<"PerlSetVar Filter On">.  That
 information isn't actually used by this module, it's used by modules which
 are themselves filters (like Apache::SSI).  I hereby suggest that filtering
 modules use this parameter, using it as the switch to detect whether they 
-should call $r->filter_input.
+should call $r->filter_register.  However, it's often not necessary -
+there is very little overhead in simply calling $r->filter_register
+even when you don't need to do any filtering, and $r->filter_input can
+be a handy way of opening the $r->filename file.
 
 VERY IMPORTANT: if one handler in a stacked handler chain uses 
 C<Apache::Filter>, then THEY ALL MUST USE IT.  This means they all must
-call $r->filter_input exactly once.  Otherwise C<Apache::Filter> couldn't
+call $r->filter_register exactly once.  Otherwise C<Apache::Filter> couldn't
 capture the output of the handlers properly, and it wouldn't know when
 to release the output to the browser.
 
@@ -446,11 +446,11 @@ subdirectory: UC.pm converts all its input to upper-case, and Reverse.pm
 prints the lines of its input reversed.
 
 Finally, a caveat: in version 0.09 I started explicitly setting the
-Content-Length to undef inside $r->filter_input.  This prevents early
+Content-Length to undef.  This prevents early
 filters from incorrectly setting the content length, which will almost
 certainly be wrong if there are any filters after it.  This means that
 if you write any filters which set the content length, they should do
-it B<after> the $r->filter_input call.
+it B<after> the $r->filter_register call.
 
 =head1 TO DO
 
@@ -475,7 +475,7 @@ can't properly pass control to a non-mod_perl indexer like
 mod_autoindex.  Suggestions are welcome.
 
 I haven't considered what will happen if you use this and you haven't
-turned on PERL_STACKED_HANDLERS.
+turned on PERL_STACKED_HANDLERS.  So don't do it.
 
 =head1 AUTHOR
 
@@ -483,7 +483,7 @@ Ken Williams (ken@forum.swarthmore.edu)
 
 =head1 COPYRIGHT
 
-Copyright 1998 Ken Williams.  All rights reserved.
+Copyright 1998,1999,2000 Ken Williams.  All rights reserved.
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

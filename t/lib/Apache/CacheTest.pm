@@ -7,7 +7,7 @@ use Apache::Constants qw(:common);
 
 
 sub handler {
-  my $r = shift;
+  my $r = shift->filter_register;
   
   $r->content_type("text/html");
   my ($fh, $status) = $r->filter_input();

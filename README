@@ -13,27 +13,29 @@ SYNOPSIS
       </Files>
       
       #### In Filter1, Filter2, and Filter3:
-      my $fh = $r->filter_input();
+      $r = $r->filter_register();  # Required
+      my $fh = $r->filter_input(); # Optional (you might not need the input FH)
       while (<$fh>) {
         s/ something / something else /;
         print;
       }
       
       #### or, alternatively:
-      my ($fh, $status) = $r->filter_input();
-      return $status unless $status == OK;  # The Apache::Constants OK
+      $r = $r->filter_register();
+      my ($fh, $status) = $r->filter_input(); # Get status information
+      return $status unless $status == OK;
       while (<$fh>) {
         s/ something / something else /;
         print;
       }
 
 DESCRIPTION
-    Each of the handlers Filter1, Filter2, and Filter3 will make a call to
-    $r->filter_input(), which will return a filehandle. For Filter1, the
-    filehandle points to the requested file. For Filter2, the filehandle
-    contains whatever Filter1 wrote to STDOUT. For Filter3, it contains
-    whatever Filter3 wrote to STDOUT. The output of Filter3 goes directly to
-    the browser.
+    In basic operation, each of the handlers Filter1, Filter2, and Filter3
+    will make a call to $r->filter_input(), which will return a filehandle.
+    For Filter1, the filehandle points to the requested file. For Filter2,
+    the filehandle contains whatever Filter1 wrote to STDOUT. For Filter3,
+    it contains whatever Filter3 wrote to STDOUT. The output of Filter3 goes
+    directly to the browser.
 
     Note that the modules Filter1, Filter2, and Filter3 are listed in
     forward order, in contrast to the reverse-order listing of
@@ -42,9 +44,9 @@ DESCRIPTION
     When you've got this module, you can use the same handler both as a
     stand-alone handler, and as an element in a chain. Just make sure that
     whenever you're chaining, all the handlers in the chain are "Filter-
-    aware," i.e. they each call $r->filter_input() exactly once, before they
-    start printing to STDOUT. There should be almost no overhead for doing
-    this when there's only one element in the chain.
+    aware," i.e. they each call $r->filter_register() exactly once, before
+    they start printing to STDOUT. There should be almost no overhead for
+    doing this when there's only one element in the chain.
 
     Currently the following public modules are Filter-aware. Please tell me
     of others you know about.
@@ -56,9 +58,18 @@ DESCRIPTION
      Apache::SimpleReplace
 
 METHODS
+    Apache::Filter is a subclass of Apache, so all Apache methods are
+    available.
+
     This module doesn't create an Apache handler class of its own - rather,
     it adds some methods to the Apache:: class. Thus, it's really a mix-in
     package that just adds functionality to the $r request object.
+
+    * $r = $r->filter_register()
+        Every Filter-aware module must call this method exactly once, so
+        that Apache::filter can properly rotate its filters from previous
+        handlers, and so it can know when the output should eventually go to
+        the browser.
 
     * $r->filter_input()
         This method will give you a filehandle that contains either the file
@@ -69,11 +80,6 @@ METHODS
         >filename was successfully found and opened. If it was not, the
         filehandle returned will be undef.
 
-        If for some reason you have already opened the filehandle you'll
-        want to read from, call `$r->filter_input(handle='$handle)>, and
-        `filter_input()' won't try to open any files. It will pass your
-        handle back to you.
-
     * $r->changed_since($time)
         Returns true or false based on whether the current input seems like
         it has changed since `$time'. Currently the criteria to figure this
@@ -82,8 +88,10 @@ METHODS
         deterministic (see below), then we return false. Otherwise we return
         true.
 
+        This method is meant to be useful in implementing caching schemes.
+
         A caution: always call the `changed_since()' and `deterministic()'
-        methods AFTER the `filter_input()' method. This is because
+        methods AFTER the `filter_register()' method. This is because
         Apache::Filter uses a crude counting method to figure out which
         handler in the chain is currently executing, and calling these
         routines out of order messes up the counting.
@@ -147,40 +155,34 @@ METHODS
          }
 
         A caution: always call the `changed_since()' and `deterministic()'
-        methods AFTER the `filter_input()' method. This is because
+        methods AFTER the `filter_register()' method. This is because
         Apache::Filter uses a crude counting method to figure out which
         handler in the chain is currently executing, and calling these
         routines out of order messes up the counting.
 
 HEADERS
-    In order to make a decent web page, each of the filters shouldn't call
-    $r->send_http_header() or you'll get lots of headers all over your page.
-    This is so obvious that the previous sentence should be a lot shorter.
-
-    So the current solution is to have _none_ of the filters send the
-    headers, and this module will send them for you when the last filter
-    calls $r->filter_input(). You should still set up the content-type
-    (using $r->content_type), and any other headers you want to send, before
-    calling $r->filter_input(). filter_input will simply call $r-
-    >send_http_header() with no arguments to send whatever headers you have
-    set.
-
-    One downside of this is that all the filters in the stack will probably
-    call $r->content_type, most of them for no reason, but say la vee. If
-    anyone's got better ideas, don't hold them back.
+    In previous releases of this module, it was dangerous to call $r-
+    >send_http_header(), because a previous/postvious filter might also try
+    to send headers, and then you'd have duplicate headers getting sent. In
+    current releases you can simply send the headers. If the current filter
+    is the last filter, the headers will be sent as usual, and otherwise
+    send_http_header() is a no-op.
 
 NOTES
     You'll notice in the SYNOPSIS that I say `"PerlSetVar Filter On"'. That
     information isn't actually used by this module, it's used by modules
     which are themselves filters (like Apache::SSI). I hereby suggest that
     filtering modules use this parameter, using it as the switch to detect
-    whether they should call $r->filter_input.
+    whether they should call $r->filter_register. However, it's often not
+    necessary - there is very little overhead in simply calling $r-
+    >filter_register even when you don't need to do any filtering, and $r-
+    >filter_input can be a handy way of opening the $r->filename file.
 
     VERY IMPORTANT: if one handler in a stacked handler chain uses
     `Apache::Filter', then THEY ALL MUST USE IT. This means they all must
-    call $r->filter_input exactly once. Otherwise `Apache::Filter' couldn't
-    capture the output of the handlers properly, and it wouldn't know when
-    to release the output to the browser.
+    call $r->filter_register exactly once. Otherwise `Apache::Filter'
+    couldn't capture the output of the handlers properly, and it wouldn't
+    know when to release the output to the browser.
 
     The output of each filter (except the last) is accumulated in memory
     before it's passed to the next filter, so memory requirements are large
@@ -197,11 +199,11 @@ NOTES
     Reverse.pm prints the lines of its input reversed.
 
     Finally, a caveat: in version 0.09 I started explicitly setting the
-    Content-Length to undef inside $r->filter_input. This prevents early
-    filters from incorrectly setting the content length, which will almost
-    certainly be wrong if there are any filters after it. This means that if
-    you write any filters which set the content length, they should do it
-    after the $r->filter_input call.
+    Content-Length to undef. This prevents early filters from incorrectly
+    setting the content length, which will almost certainly be wrong if
+    there are any filters after it. This means that if you write any filters
+    which set the content length, they should do it after the $r-
+    >filter_register call.
 
 TO DO
     Add a buffered mode to the final output, so that we can send a proper
@@ -224,13 +226,13 @@ BUGS
     welcome.
 
     I haven't considered what will happen if you use this and you haven't
-    turned on PERL_STACKED_HANDLERS.
+    turned on PERL_STACKED_HANDLERS. So don't do it.
 
 AUTHOR
     Ken Williams (ken@forum.swarthmore.edu)
 
 COPYRIGHT
-    Copyright 1998 Ken Williams. All rights reserved.
+    Copyright 1998,1999,2000 Ken Williams. All rights reserved.
 
     This library is free software; you can redistribute it and/or modify it
     under the same terms as Perl itself.

@@ -1,5 +1,6 @@
 #!/usr/bin/perl
 
-#print "Content-type: text/html\n\n";
+my $r = shift;
+$r->send_http_header;
 
 print "blah\n";
