@@ -29,6 +29,10 @@ To install the module:
 
 Revision history for Perl extension Apache::Filter.
 
+1.005 Sun Oct 17 11:57:20 EDT 1999
+   - Fixed a problem that prevented proper functioning when Perl is
+     compiled with sfio instead of stdio.  Should work properly now.
+
 1.003 Sat Sep 11 23:24:09 EDT 1999
    - Forgot to replace Doug's PerlRun documentation with my
      PerlRunFilter documentation in the last release, so I did it now.

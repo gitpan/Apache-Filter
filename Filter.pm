@@ -5,7 +5,7 @@ use Symbol;
 use Carp;
 use Apache::Constants(':common');
 use vars qw($VERSION);
-$VERSION = sprintf '%d.%03d', q$Revision: 1.4 $ =~ /: (\d+).(\d+)/;
+$VERSION = sprintf '%d.%03d', q$Revision: 1.5 $ =~ /: (\d+).(\d+)/;
 
 sub _out { wantarray ? @_ : $_[0] }
 
@@ -17,6 +17,7 @@ sub _out { wantarray ? @_ : $_[0] }
 #                the position of the current filter in the handler stack.
 # $info->{'determ'}{$i} contains a true value if handler number $i has declared that it
 #                     is deterministic (see docs).
+
 
 sub Apache::filter_input {
     my $r = shift;
