@@ -43,6 +43,9 @@ my %requests = (
 	4  => 'dir/',  # A directory
 );
 
+my %special_tests = (
+	4 => \&index_ok,
+);
 
 print "1.." . (2 + keys %requests) . "\n";
 
@@ -68,6 +71,8 @@ if ($result) {
 }
 
 &cleanup();
+
+sub index_ok { $_[0] =~ /index of/i };
 
 #############################
 
@@ -98,8 +103,10 @@ sub cleanup {
 sub test_outcome {
 	my $text = shift;
 	my $i = shift;
-	
-	my $ok = ($text eq `cat t/docs.check/$i`);
+
+	my $ok = ($special_tests{$i} ?
+		&{$special_tests{$i}}($text) :
+		($text eq `cat t/docs.check/$i`) );
 	&report($ok);
 	print "Result: $text" if ($ENV{TEST_VERBOSE} and not $ok);
 }

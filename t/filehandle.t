@@ -24,11 +24,13 @@ print FH "line1", "\n", "line2";
 &report(<FH> eq "line2");
 
 print FH "line1\nline2\n";
-#my $result = join('', <FH>);
-&report(join('', <FH>) eq "line1\nline2\n");
+my $result = join('', <FH>);
+print STDERR $result if $ENV{'TEST_VERBOSE'};
+&report($result eq "line1\nline2\n");
 
 sub report {
    my $ok = shift;
    $TEST_NUM++;
    print "not "x(!$ok), "ok $TEST_NUM\n";
+	print STDERR $_[0] if (!$ok and $ENV{'TEST_VERBOSE'});
 }
