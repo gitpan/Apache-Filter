@@ -41,6 +41,7 @@ use Carp;
 my %requests = (
 	3  => 'simple.u',
 	4  => 'dir/',  # A directory
+	5  => 'determ.p',
 );
 
 my %special_tests = (
@@ -169,6 +170,7 @@ PerlModule ExtUtils::testlib
 PerlModule Apache::Filter
 PerlRequire $DIR/t/UC.pm
 PerlRequire $DIR/t/Reverse.pm
+PerlRequire $DIR/t/CacheTest.pm
 
 # Default - this includes directories too
 SetHandler perl-script
@@ -185,9 +187,9 @@ PerlHandler Apache::UC Apache::Reverse
  PerlHandler Apache::Reverse
 </Files>
 
-<Files ~ "\\.u\$">
+<Files ~ "\\.p\$">
  SetHandler perl-script
- PerlHandler Apache::UC
+ PerlHandler Apache::UC Apache::CacheTest
 </Files>
 
 

@@ -5,9 +5,19 @@ use Symbol;
 use Carp;
 use Apache::Constants(':common');
 use vars qw(%INFO $VERSION);
-$VERSION = '0.06';
+$VERSION = '0.07';
 
 sub _out { wantarray ? @_ : $_[0] }
+
+# %INFO object works like member data of $r, but since $r is a non-perl
+# object, we can't store data in it.
+# 
+# $INFO{'fh_in'} is a Apache::Filter filehandle containing the output of the previous filter
+# $INFO{'is_dir'} is true if $r->filename() is a directory
+# $INFO{'count'} is incremented every time $r->filter_input() is called, so it contains
+#                the position of the current filter in the handler stack.
+# $INFO{'determ'}{$i} contains a true value if handler number $i has declared that it
+#                     is deterministic (see docs).
 
 sub Apache::filter_input {
     my $r = shift;
@@ -62,10 +72,26 @@ sub Apache::filter_input {
 }
 
 sub Apache::changed_since {
-    return 1 if $INFO{'count'} > 1;
+    
+    # If any previous handlers are non-deterministic, then the content is 
+    # volatile, so tell them it's changed.
+    if ($INFO{'count'} > 1) {
+        return 1 if grep {not $INFO{'determ'}{$_}} (1..$INFO{'count'}-1);
+    }
+    
+    # Okay, only deterministic handlers have touched this.  If the file has
+    # changed since the given time, return true.  Otherwise, return false.
     my $r = shift;
     return 1 if ((stat $r->filename)[9] > shift);
     return 0;
+}
+
+sub Apache::deterministic {
+    shift;  # Don't need $r
+    if (@_) {
+        $INFO{'determ'}{$INFO{'count'}} = shift;
+    }
+    return $INFO{'determ'}{$INFO{'count'}};
 }
 
 # This package is a TIEHANDLE package, so it can be used like this:
@@ -207,19 +233,76 @@ found and opened.
 =item * $r->changed_since($time)
 
 Returns true or false based on whether the current input seems like it 
-has changed since C<$time>.  Currently what this means is that if we're
-the first handler in the chain, and the file pointed to by 
-C<$r-E<gt>filename> hasn't changed since the time given, then we return
-false.  Otherwise we return true.
+has changed since C<$time>.  Currently the criteria to figure this out
+is this: if the file pointed to by C<$r-E<gt>filename> hasn't changed since
+the time given, and if all previous filters in the chain are deterministic
+(see below), then we return false.  Otherwise we return true.
 
-In the future, there will probably be a way for filters to specify whether they're
-"deterministic" or not (given identical input at different times, a
-deterministic filter will always return the same output).  So if you had
-a filter chain in which the first filter just converted all its input
-to upper-case, and then the second filter applied some more complicated
-procedure, the second filter could implement a scheme that cached the
-output of the upper-caser by checking to see whether only deterministic
-filters had filtered its input.  
+A caution: always call the C<changed_since()> and C<deterministic()> methods
+B<AFTER> the C<filter_input()> method.  This is because Apache::Filter uses a 
+crude counting method to figure out which handler in the chain is currently 
+executing, and calling these routines out of order messes up the counting.
+
+=item * $r->deterministic(1|0);
+
+As of version 0.07, the concept of a "deterministic" filter is supported.  A
+deterministic filter is one whose output is entirely determined by the contents
+of its input file (whether the $r->filename file or the output of another filter),
+and doesn't depend at all on outside factors.  For example, a filter that translates
+all its output to upper-case is deterministic, but a filter that adds a date
+stamp to a page, or looks things up in a database which may vary over time, is not.
+
+Why is this a big deal?  Let's say you have the following setup:
+
+ <Files ~ "\.boffo$">
+  SetHandler perl-script
+  PerlHandler Apache::FormatNumbers Apache::DoBigCalculation
+  # The above are fake modules, you get the idea
+ </Files>
+
+Suppose the FormatNumbers module is deterministic, and the DoBigCalculation module
+takes a long time to run.  The DoBigCalculation module can now cache its results,
+so that when an input file is unchanged on disk, its results will remain known
+when passed through the FormatNumbers module, and the DoBigCalculation module
+will be able to used cached results from a previous run.
+
+The guts of the modules would look something like this:
+
+ sub Apache::FormatNumbers::handler {
+    my $r = shift;
+    $r->content_type("text/html");
+    my ($fh, $status) = $r->filter_input();
+    return $status unless $status == OK;
+    $r->deterministic(1); # Set to true; default is false
+    
+    # ... do some formatting, print to STDOUT
+    return OK;
+ }
+ 
+ sub Apache::DoBigCalculation::handler {
+    my $r = shift;
+    $r->content_type("text/html");
+    my ($fh, $status) = $r->filter_input();
+    return $status unless $status == OK;
+    
+    # This module implements a caching scheme by using the 
+    # %cache_time and %cache_content hashes.
+    my $time = $cache_time{$r->filename};
+    my $output;
+    if ($r->changed_since($time)) {
+        # Read from <$fh>, perform a big calculation on it, and print to STDOUT
+    } else {
+        print $cache_content{$r->filename};
+    }
+    
+    return OK;
+ }
+
+A caution: always call the C<changed_since()> and C<deterministic()> methods
+B<AFTER> the C<filter_input()> method.  This is because Apache::Filter uses a 
+crude counting method to figure out which handler in the chain is currently 
+executing, and calling these routines out of order messes up the counting.
+
 
 =back
 

@@ -1,7 +1,6 @@
-package Apache::UC;
+package Apache::CacheTest;
 
-# This is just a proof-of-concept, an example of a module
-# that uses the Apache::Filter features.
+# This tests the 'deterministic' method
 
 use strict;
 use Apache::Constants qw(:common);
@@ -13,9 +12,12 @@ sub handler {
 	$r->content_type("text/html");
 	my ($fh, $status) = $r->filter_input();
 	return $status unless $status == OK;
-	$r->deterministic(1);
 
-	print uc() while <$fh>;
+	if ($r->changed_since(time)) {
+		print "Changed since right now\n";
+	} else {
+		print "Hasn't changed since right now\n";
+	}
 
 	return OK;
 }
