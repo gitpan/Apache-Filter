@@ -1,7 +1,15 @@
 #!/usr/bin/perl
 
-# This test will start up a real httpd server with Apache::Filter loaded in
-# it, and make several requests on that server.
+# This test will start up a real httpd server with Apache::Filter and
+# Apache::SSI loaded in it, and make several requests on that server.
+
+eval "use Apache::SSI";
+if ($@) {
+    print STDERR "Skipping, Apache::SSI not installed\n";
+    print "1..1\nok 1\n";
+    exit;
+}
+
 
 # Change this to the path to a mod_perl-enabled Apache web server.
 my $HTTPD = "/home/ken/http/httpd";
@@ -40,15 +48,10 @@ use Carp;
 
 my %requests = 
     (
-     3  => 'simple.u',
-     4  => 'dir/',  # A directory
-     5  => 'determ.p',
-     6  => 'perlfirst.pl',
     );
 
 my %special_tests = 
     (
-     4 => \&index_ok,
     );
 
 print "1.." . (2 + keys %requests) . "\n";
@@ -58,20 +61,20 @@ my $result = &start_httpd;
 &report( $result );
 
 if ($result) {
-  local $SIG{'__DIE__'} = \&kill_httpd;
-  
-  foreach my $testnum (sort {$a<=>$b} keys %requests) {
-    my $ua = new LWP::UserAgent;
-    my $req = new HTTP::Request('GET', "http://localhost:$PORT/t/docs/$requests{$testnum}");
-    my $response = $ua->request($req);
-    
-    &test_outcome($response->content, $testnum);
-  }
-  
-  &kill_httpd();
-  warn "\nSee $ELOG for failure details\n" if $BAD;
+	local $SIG{'__DIE__'} = \&kill_httpd;
+	
+	foreach my $testnum (sort {$a<=>$b} keys %requests) {
+		my $ua = new LWP::UserAgent;
+		my $req = new HTTP::Request('GET', "http://localhost:$PORT/t/docs/$requests{$testnum}");
+		my $response = $ua->request($req);
+	
+		&test_outcome($response->content, $testnum);
+	}
+
+	&kill_httpd();
+	warn "\nSee $ELOG for failure details\n" if $BAD;
 } else {
-  warn "Aborting real.t";
+	warn "Aborting real.t";
 }
 
 &cleanup();
@@ -81,74 +84,73 @@ sub index_ok { $_[0] =~ /index of/i };
 #############################
 
 sub start_httpd {
-  print STDERR "Starting http server... ";
-  unless (-x $HTTPD) {
-    warn("$HTTPD doesn't exist or isn't executable.  Edit real.t if you want to test with a real apache server.\n");
-    return;
-  }
-  &do_system("cp /dev/null $ELOG");
-  &do_system("$HTTPD -f $D_CONF") == 0
-    or die "Can't start httpd: $!";
-  print STDERR "ready. ";
-  return 1;
+	print STDERR "Starting http server... ";
+	unless (-x $HTTPD) {
+		warn("$HTTPD doesn't exist or isn't executable.  Edit real.t if you want to test with a real apache server.\n");
+		return;
+	}
+	&do_system("cp /dev/null $ELOG");
+	&do_system("$HTTPD -f $D_CONF") == 0
+		or die "Can't start httpd: $!";
+	print STDERR "ready. ";
+	return 1;
 }
 
 sub kill_httpd {
-  &do_system("kill -TERM `cat $PID`");
-  &do_eval("unlink '$ELOG'") unless $BAD;
-  return 1;
+	&do_system("kill -TERM `cat $PID`");
+	&do_eval("unlink '$ELOG'") unless $BAD;
+	return 1;
 }
 
 sub cleanup {
-  &do_eval("unlink '$CONF'");
-  return 1;
+	&do_eval("unlink '$CONF'");
+	return 1;
 }
 
 sub test_outcome {
-  my $text = shift;
-  my $i = shift;
-  
-  my $expected;
-  my $ok = ($special_tests{$i} ?
-	    &{$special_tests{$i}}($text) :
-	    ($text eq ($expected = `cat t/docs.check/$i`)) );
-  &report($ok);
-  print "Result: $text\nExpected: $expected\n" if ($ENV{TEST_VERBOSE} and not $ok);
+	my $text = shift;
+	my $i = shift;
+
+	my $ok = ($special_tests{$i} ?
+		&{$special_tests{$i}}($text) :
+		($text eq `cat t/docs.check/$i`) );
+	&report($ok);
+	print "Result: $text\n" if ($ENV{TEST_VERBOSE} and not $ok);
 }
 
 sub report {
-  my $ok = shift;
-  $TEST_NUM++;
-  print "not "x(!$ok), "ok $TEST_NUM\n";
-  $BAD++ unless $ok;
+	my $ok = shift;
+	$TEST_NUM++;
+	print "not "x(!$ok), "ok $TEST_NUM\n";
+	$BAD++ unless $ok;
 }
 
 sub do_system {
-  my $cmd = shift;
-  print "$cmd\n";
-  return system $cmd;
+	my $cmd = shift;
+	print "$cmd\n";
+	return system $cmd;
 }
 
 sub do_eval {
-  my $code = shift;
-  print "$code\n";
-  my $result = eval $code;
-  if ($@ or !$result) { carp "WARNING: $@" }
-  return $result;
+	my $code = shift;
+	print "$code\n";
+	my $result = eval $code;
+	if ($@ or !$result) { carp "WARNING: $@" }
+	return $result;
 }
 
 sub dirify {
-  no strict('refs');
-  foreach (@_) {
-    # Turn $VAR into $D_VAR, which has an absolute path
-    ${"D_$_"} = (${$_} =~ m,^/, ? ${$_} : "$DIR/${$_}");
-  }
+	no strict('refs');
+	foreach (@_) {
+		# Turn $VAR into $D_VAR, which has an absolute path
+		${"D_$_"} = (${$_} =~ m,^/, ? ${$_} : "$DIR/${$_}");
+	}
 }
 
 sub create_conf {
-  my $file = $CONF;
-  open (CONF, ">$file") or die "Can't create $file: $!" && return;
-  print CONF <<EOF;
+	my $file = $CONF;
+	open (CONF, ">$file") or die "Can't create $file: $!" && return;
+	print CONF <<EOF;
 
 #This file is created by the $0 script.
 
@@ -172,11 +174,9 @@ AddType text/html .html
 # Look in ./blib/lib
 PerlModule ExtUtils::testlib
 PerlModule Apache::Filter
-PerlModule Apache::PerlRunFilter;
 PerlRequire $DIR/t/UC.pm
 PerlRequire $DIR/t/Reverse.pm
 PerlRequire $DIR/t/CacheTest.pm
-
 
 # Default - this includes directories too
 SetHandler perl-script
@@ -196,12 +196,6 @@ PerlHandler Apache::UC Apache::Reverse
 <Files ~ "\\.p\$">
  SetHandler perl-script
  PerlHandler Apache::UC Apache::CacheTest
-</Files>
-
-<Files ~ "\\.pl\$">
- SetHandler perl-script
- PerlSetVar Filter on
- PerlHandler Apache::PerlRunFilter Apache::UC
 </Files>
 
 

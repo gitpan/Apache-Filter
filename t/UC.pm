@@ -8,17 +8,17 @@ use Apache::Constants qw(:common);
 use Carp('cluck');
 
 sub handler {
-	my $r = shift;
-	$r = shift unless ref $r;
+  my $r = shift;
+  $r = shift unless ref $r;
+  
+  $r->content_type("text/html");
+  my ($fh, $status) = $r->filter_input();
 
-	$r->content_type("text/html");
-	my ($fh, $status) = $r->filter_input();
-	return $status unless $status == OK;
-	$r->deterministic(1);
-
-	print uc() while <$fh>;
-
-	return OK;
+  return $status unless $status == OK;
+  $r->deterministic(1);
+  
+  print uc while <$fh>;
+  return OK;
 }
 1;
 

@@ -5,7 +5,8 @@ use Symbol;
 use Carp;
 use Apache::Constants(':common');
 use vars qw($VERSION);
-$VERSION = '0.10';
+
+$VERSION = sprintf '%d.%03d', q$Revision: 1.2 $ =~ /: (\d+).(\d+)/;
 
 sub _out { wantarray ? @_ : $_[0] }
 
@@ -27,7 +28,10 @@ sub Apache::filter_input {
 	$r->pnotes('FilterInfo', {});
     }
     my $info = $r->pnotes('FilterInfo');
-    warn "*******info is @{[ %$info ]}" if $debug;
+    if ($debug) {
+      my $reqname = $r->filename;
+      warn "*******info for $reqname is @{[ %$info ]}";
+    }
 
     my $status = OK;
     $info->{'fh_in'} = gensym;
@@ -66,7 +70,6 @@ sub Apache::filter_input {
         }
         
         warn "Untie()ing STDOUT" if $debug;
-#        $r->register_cleanup(sub { delete $Apache::Filter::INFO{$$r}; });
         $info->{'old_stdout'} = ref tied(*STDOUT);
         untie *STDOUT;
     }
