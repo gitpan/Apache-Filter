@@ -3,9 +3,12 @@ Filter.pm
 MANIFEST
 Makefile.PL
 README
+pm_to_blib
 t/Reverse.pm
 t/UC.pm
 t/docs.check/3
+t/docs.check/4
+t/docs/dir/exists
 t/docs/simple.u
 t/filehandle.t
 t/real.t

@@ -11,7 +11,8 @@ sub handler {
 	my $r = shift;
 
 	$r->content_type("text/html");
-	my $fh = $r->filter_input();
+	my ($fh, $status) = $r->filter_input();
+	return $status unless $status == OK;
 
 	print uc() while <$fh>;
 

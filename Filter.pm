@@ -5,7 +5,7 @@ use Symbol;
 use Carp;
 use Apache::Constants(':common');
 use vars qw(%INFO $VERSION);
-$VERSION = '0.04';
+$VERSION = '0.05';
 
 sub _out { wantarray ? @_ : $_[0] }
 
@@ -15,8 +15,17 @@ sub Apache::filter_input {
     
     my $status = OK;
     $INFO{'fh_in'} = gensym;
+    my $count_in = $INFO{'count'}++; # Yuck - I don't like counting invocations.
     
-    if ($INFO{'count'}) {
+    if (!$count_in and -d $r->filename()) {
+        # Let mod_dir handle it - does this work?
+        $INFO{'is_dir'} = 1;
+    }
+    if ($INFO{'is_dir'}) {
+        return _out undef, DECLINED;
+    }
+        
+    if ($count_in) {
         # A previous filter has written to STDOUT.
         # We'll assume it's done writing.
         # Thus we should turn STDOUT into fh_in.
@@ -34,25 +43,22 @@ sub Apache::filter_input {
             $r->log_error("Can't open " . $r->filename() . ": $!");
             return _out undef, FORBIDDEN;
         }
-    }
-    
-    unless ($INFO{'count'}) {
+        
         $r->register_cleanup(sub {%Apache::Filter::INFO=()});
         untie *STDOUT;
     }
-        
-    $INFO{'count'}++;  #YUCK!
     
     if (@{$r->get_handlers('PerlHandler')} == $INFO{'count'}) {  #YUCK!
         # This is the last filter in the chain, so let STDOUT go to the browser.
         tie *STDOUT, ref($r), $r;
         $r->send_http_header();
     } else {
+        # There are more filters after this one.
         # Capture the output so we can feed it to the next filter.
         tie *STDOUT, __PACKAGE__;
     }
     
-    return _out $INFO{'fh_in'}, OK;
+    return _out $INFO{'fh_in'}, $status;
 }
 
 sub Apache::changed_since {
@@ -85,32 +91,42 @@ sub PRINTF {
 }
 
 sub READLINE {
-   # I've tried to replicate the behavior of real filehandles here
-   # with respect to $/, but I might have screwed something up.
-   # It's kind of a mess.
-
-   my $self = shift;
-   my $debug = 0;
-   warn "reading line, content is $self->{'content'}" if $debug;
-   return undef unless length $self->{'content'};
-
-   if (defined $/) {
-      if (my $l = length $/) {
-         my $spot = index($self->{'content'}, $/);
-         if ($spot > -1) {
-            my $out = substr($self->{'content'}, 0, $spot + $l);
-            substr($self->{'content'},0, $spot + $l) = '';
-            return $out;
-         } else {
+    # I've tried to replicate the behavior of real filehandles here
+    # with respect to $/, but I might have screwed something up.
+    # It's kind of a mess.  Beautiful code is welcome.
+ 
+    my $self = shift;
+    my $debug = 0;
+    warn "reading line, content is $self->{'content'}" if $debug;
+    return unless length $self->{'content'};
+        
+    if (wantarray) {
+        # This handles list context, i.e. @list = <FILEHANDLE> .
+        # Wish Perl did this for me by repeated calls to READLINE.
+        my @lines;
+        while (length $self->{'content'}) {
+            push @lines, scalar $self->READLINE();
+        }
+        return @lines;
+    }
+    
+    if (defined $/) {
+        if (my $l = length $/) {
+            my $spot = index($self->{'content'}, $/);
+            if ($spot > -1) {
+                my $out = substr($self->{'content'}, 0, $spot + $l);
+                substr($self->{'content'},0, $spot + $l) = '';
+                return $out;
+            } else {
+                return delete $self->{'content'};
+            }
+        } else {
+            return $1 if $self->{'content'} =~ s/^(.*?\n+)//;
             return delete $self->{'content'};
-         }
-      } else {
-         return $1 if $self->{'content'} =~ s/^(.*?\n+)//;
-         return delete $self->{'content'};
-      }
-   } else {
-      return delete $self->{'content'};
-   }
+        }
+    } else {
+        return delete $self->{'content'};
+    }
 }
 
 sub READ { croak "READ method is not implemented in ", __PACKAGE__ }
@@ -119,7 +135,6 @@ sub GETC { croak "GETC method is not implemented in ", __PACKAGE__ }
 1;
 
 __END__
-# Below is the stub of documentation for your module. You better edit it!
 
 =head1 NAME
 
@@ -173,7 +188,7 @@ no overhead for doing this when there's only one element in the chain.
 
 =head1 METHODS
 
-This module doesn't create a class of its own - rather, it adds some
+This module doesn't create an Apache handler class of its own - rather, it adds some
 methods to the Apache:: class.  Thus, it's really a mix-in package
 that just adds functionality to the $r request object.
 
@@ -197,15 +212,14 @@ the first handler in the chain, and the file pointed to by
 C<$r-E<gt>filename> hasn't changed since the time given, then we return
 false.  Otherwise we return true.
 
-In the future, there might be a way for filters to specify whether they're
+In the future, there will probably be a way for filters to specify whether they're
 "deterministic" or not (given identical input at different times, a
 deterministic filter will always return the same output).  So if you had
 a filter chain in which the first filter just converted all its input
 to upper-case, and then the second filter applied some more complicated
 procedure, the second filter could implement a scheme that cached the
 output of the upper-caser by checking to see whether only deterministic
-filters had filtered its input.  Such a feature seems frivolous to me though,
-so don't expect it unless you can convince me that it's a good idea.
+filters had filtered its input.  
 
 =back
 
@@ -238,10 +252,10 @@ to release the output to the browser.
 
 The output of each filter is accumulated in memory before it's passed
 to the next filter, so memory requirements might be large for large pages.
-I'm not sure whether Apache::OutputChain is subject to this same behavior.
-In future versions I might find a way around this, or cache large pages
-to disk so memory requirements don't get out of hand.  We'll see whether
-it's a problem.
+I'm not sure whether Apache::OutputChain is subject to this same behavior,
+but I think it's not.  In future versions I might find a way around this, 
+or cache large pages to disk so memory requirements don't get out of hand.  
+We'll see whether it's a problem.
 
 My usual alpha disclaimer: the interface here isn't stable.  So far this
 should be treated as a proof-of-concept.
@@ -252,8 +266,12 @@ prints the lines of its input reversed.
 
 I tried using $r->finfo for file-test operators, but they didn't seem to
 work.  If they start working or I figure out what's going on, I'll replace
-$r->filename with $r->finfo.  This is pretty bizzarre, because it worked
-fine in Apache::SSI (shrug).
+$r->filename with $r->finfo.  This is pretty bizzarre.
+
+=head1 TO DO
+
+I'd like to implement the "deterministic" feature mentioned above.  
+Philippe Chiasson has convinced me that it's a good idea.
 
 =head1 BUGS
 
@@ -262,6 +280,13 @@ handler is the last handler in the chain.  As a result, code that
 manipulates the handler list at runtime (using push_handlers and the
 like) might produce mayhem.  Poke around a bit in the code before you 
 try anything.
+
+This will automatically return DECLINED when $r->filename points to a
+directory.  This is just because in most cases this is what you want
+(so that mod_dir can take care of the request), and because figuring
+out the "right" way to handle directories seems pretty tough - the
+right way would allow a directory indexing handler to be a filter, which
+isn't possible now.  Suggestions are welcome.
 
 I haven't considered what will happen if you use this and you haven't
 turned on PERL_STACKED_HANDLERS.

@@ -6,7 +6,7 @@
 # Change 1..1 below to 1..last_test_to_print .
 # (It may become useful if the test is moved to ./t subdirectory.)
 
-BEGIN { $| = 1; print "1..5\n"; }
+BEGIN { $| = 1; print "1..6\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use Apache::Filter;
 $loaded = 1;
@@ -22,6 +22,10 @@ print FH "line1\n";
 print FH "line1", "\n", "line2";
 &report(<FH> eq "line1\n");
 &report(<FH> eq "line2");
+
+print FH "line1\nline2\n";
+#my $result = join('', <FH>);
+&report(join('', <FH>) eq "line1\nline2\n");
 
 sub report {
    my $ok = shift;

@@ -40,6 +40,7 @@ use Carp;
 
 my %requests = (
 	3  => 'simple.u',
+	4  => 'dir/',  # A directory
 );
 
 
@@ -161,6 +162,11 @@ PerlModule ExtUtils::testlib
 PerlModule Apache::Filter
 PerlRequire $DIR/t/UC.pm
 PerlRequire $DIR/t/Reverse.pm
+
+# Default - this includes directories too
+SetHandler perl-script
+PerlHandler Apache::UC Apache::Reverse
+
 
 <Files ~ "\\.ur\$">
  SetHandler perl-script

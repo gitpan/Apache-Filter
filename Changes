@@ -1,5 +1,16 @@
 Revision history for Perl extension Apache::Filter.
 
+0.05  Fri Nov 27 03:00:07 EST 1998
+   - Fixed a problem with <$fh> in a list context - it was only returning
+     one line, not a list of all the lines.  ($fh is the thing returned by
+     $r->filter_input).  Spotted by Philippe Chiasson.
+   
+   - Fixed a problem that threw off the counting of filters when $r->filename
+     could not be opened.
+   
+   - I now return DECLINED whenever $r->filename is a directory.  See the note
+     in BUGS.  Spotted by Philippe Chiasson.
+
 0.04  Wed Nov 11 18:26:56 EST 1998
    - No changes - just discovered that an older version of Apache::SSI
      made its way into the tarball, so I've removed it and given the 
