@@ -1,0 +1,11 @@
+--- #YAML:1.0
+name: Apache-Filter
+version: 1.022
+license: perl
+distribution_type: module
+requires:
+  mod_perl: 1.24_01
+recommends: {}
+build_requires: {}
+conflicts: {}
+generated_by: Module::Build version 0.15

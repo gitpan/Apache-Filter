@@ -4,7 +4,7 @@ use strict;
 use Symbol;
 use Apache::Constants(':common');
 use vars qw($VERSION @ISA);
-$VERSION = '1.021';
+$VERSION = '1.022';
 @ISA = qw(Apache);
 
 # $r->pnotes('FilterInfo') contains a hashref ($info) which works like member data of $r.
@@ -209,9 +209,7 @@ sub READLINE {
         if (my $l = length $/) {
             my $spot = index($self->{'content'}, $/);
             if ($spot > -1) {
-                my $out = substr($self->{'content'}, 0, $spot + $l);
-                substr($self->{'content'},0, $spot + $l) = '';
-                return $out;
+	        return substr $self->{'content'}, 0, $spot + $l, '';
             } else {
                 return delete $self->{'content'};
             }
@@ -225,22 +223,19 @@ sub READLINE {
 }
 
 sub READ {
-    my $self = shift;
-    my $buf = \($_[0]); shift;
-    my $len = shift;
-    my $offset = shift || 0;
-    
-    substr($$buf, $offset) = substr($self->{'content'}, 0, $len);
-    substr($self->{'content'}, 0, $len) = '';
-    return length substr($$buf, $offset);
+    my $self = shift;    # @_ is now ($buf, $len[, $offset])
+
+    # I use $_[...] directly rather than assigning to variables
+    # because I need to do that for $_[0] anyway to affect the
+    # caller's copy.
+
+    return length (substr($_[0], $_[2]||0) = substr $self->{'content'}, 0, $_[1], '');
 }
 
 sub GETC {
     my $self = shift;
     
-    my $char = substr($self->{'content'}, 0, 1);
-    substr($self->{'content'}, 0, 1) = '';
-    return $char;
+    return substr $self->{'content'}, 0, 1, '';
 }
 
 # You can't do low-level operations on these filehandles.

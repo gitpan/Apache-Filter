@@ -1,3 +1,11 @@
+Version: 1.022  Fri Jan 31 14:00:48 CST 2003
+
+ - Now can be installed using either Module::Build or
+   ExtUtils::MakeMaker.  
+
+ - Simplified a few of the TIEHANDLE code chunks that used substr() to
+   manipulate saved filehandle data.
+
 Version: 1.021   Fri Dec 27 10:13:23 CST 2002
 
  - The test suite now provides a bit more useful information upon

@@ -1,10 +1,13 @@
+Build.PL
 Changes
-Filter.pm
 MANIFEST
+META.yml
 Makefile.PL
 README
+lib/Apache/Filter.pm
 lib/Apache/PerlRunFilter.pm
 lib/Apache/RegistryFilter.pm
+t/config.incl
 t/docs.check/10
 t/docs.check/11
 t/docs.check/12
