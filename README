@@ -1,0 +1,27 @@
+Hi,
+
+This is the Apache::Filter module.  It is meant to run under Apache's
+mod_perl.  
+
+It provides functionality similar to Apache::OutputChain, but with a nicer
+interface (filters are listed in forward order, not reverse, in httpd.conf;
+and you don't need two seperate modules, one which chains and one which
+doesn't).
+
+An example of a filter is provided with this distribution: UC.pm converts
+all its input to upper-case.
+
+For more specific information, please see the documentation inside Filter.pm,
+by doing "pod2txt Filter.pm", or "perldoc Apache::Filter" once you've
+installed the module.
+
+To install the module:
+
+   <make sure mod_perl is installed>
+   perl Makefile.PL
+   make
+   make test
+   make install
+
+
+-Ken Williams
