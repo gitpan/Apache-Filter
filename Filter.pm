@@ -4,10 +4,9 @@ use strict;
 use Symbol;
 use Apache::Constants(':common');
 use vars qw($VERSION @ISA);
-$VERSION = sprintf '%d.%03d', q$Revision: 1.15 $ =~ /: (\d+)\.(\d+)/;
+$VERSION = sprintf '%d.%03d', q$Revision: 1.16 $ =~ /: (\d+)\.(\d+)/;
 @ISA = qw(Apache);
 
- 
 # $r->pnotes('FilterInfo') contains a hashref ($info) which works like member data of $r.
 # 
 # $info->{'fh_in'} is a Apache::Filter filehandle containing the output of the previous filter

@@ -1,3 +1,7 @@
+Version: 1.016  Date: 2000/12/20 03:43:44
+   Noted dependency on mod_perl 1.24_01.
+
+
 Version: 1.015  Date: 2000/12/20 03:01:57
    Fixed a bug in Apache::RegistryFilter that caused a crash when
    handler() was called as a function instead of a method.

@@ -27,6 +27,9 @@ WriteMakefile
                       ),
              },
    'clean' => {FILES => "t/httpd t/httpd.conf t/error_log"},
+   'PREREQ_PM' => {
+                   'mod_perl' => '1.24_01',
+		  },
   );
 
 ##################################################################
