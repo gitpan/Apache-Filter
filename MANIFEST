@@ -3,11 +3,8 @@ Filter.pm
 MANIFEST
 Makefile.PL
 README
-lib/Apache/PerlRun.pm
 lib/Apache/PerlRunFilter.pm
-lib/Apache/RegistryBB.pm
 lib/Apache/RegistryFilter.pm
-lib/Apache/RegistryNG.pm
 t/docs.check/10
 t/docs.check/11
 t/docs.check/12

@@ -10,10 +10,9 @@ sub handler {
   my $r = shift->filter_register;
   $r->deterministic(1);
   
-  $r->content_type("text/html");
+  #$r->content_type("text/html");
   $r->send_http_header;
   my ($fh, $status) = $r->filter_input();
-warn "STATUS is $status";
   return $status unless $status == OK;
 
   print uc while <$fh>;

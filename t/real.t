@@ -19,12 +19,14 @@ my %requests =
    12 => '/docs/perlfirst.pl',  # Make sure it can run quice.
    13 => '/docs/simple.r',
    14 => '/docs/send_fd.pl',
+   15 => '/docs/send_headers.pl',
   );
 
 my %special_tests = 
   (
    4  => { 'test' => sub { $_[0] =~ /index of/i } },
    8  => { 'test' => sub { $_[1]->header('X-Test') eq 'success' } },
+   15 => { 'test' => sub { $_[1]->header('Content-Type') eq 'ungulate/moose' } },
   );
 
 use vars qw($TEST_NUM);

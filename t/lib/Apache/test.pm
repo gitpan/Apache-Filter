@@ -74,6 +74,7 @@ AddType text/html .html
 
 # Look in ./blib/lib
 #PerlModule ExtUtils::testlib
+#PerlSetEnv PERL5LIB "$DIR/blib/lib, $DIR/t/lib"
 <Perl>
  use lib "$DIR/blib/lib", "$DIR/t/lib";
 </Perl>

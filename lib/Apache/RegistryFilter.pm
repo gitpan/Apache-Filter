@@ -1,7 +1,6 @@
 package Apache::RegistryFilter;
 
 use strict;
-#use lib '/home/ken/modperl/lib';
 use Apache::RegistryNG;
 use Apache::Constants qw(:common);
 use Symbol;

@@ -4,7 +4,7 @@ use strict;
 use Symbol;
 use Apache::Constants(':common');
 use vars qw($VERSION @ISA);
-$VERSION = sprintf '%d.%03d', q$Revision: 1.13 $ =~ /: (\d+)\.(\d+)/;
+$VERSION = sprintf '%d.%03d', q$Revision: 1.14 $ =~ /: (\d+)\.(\d+)/;
 @ISA = qw(Apache);
  
 # $r->pnotes('FilterInfo') contains a hashref ($info) which works like member data of $r.
@@ -106,10 +106,15 @@ sub is_first_filter {
 
 sub send_http_header {
   my $self = shift;
-  return unless $self->is_last_filter;
+  unless ($self->is_last_filter) {
+    # This lets previous filters set content_type, which becomes default for final filter.
+    $self->content_type($_[0]) if @_;
 
-  # Prevent early filters from messing up the content-length of late filters
-  $self->header_out('Content-Length'=> undef);
+    # Prevent early filters from messing up the content-length of late filters
+    $self->header_out('Content-Length'=> undef);
+    return;
+  }
+
   return $self->SUPER::send_http_header(@_);
 }
 
