@@ -29,6 +29,10 @@ To install the module:
 
 Revision history for Perl extension Apache::Filter.
 
+1.003 Sat Sep 11 23:24:09 EDT 1999
+   - Forgot to replace Doug's PerlRun documentation with my
+     PerlRunFilter documentation in the last release, so I did it now.
+
 1.002 Sat Sep 11 22:23:47 EDT 1999
    - Added the Apache::PerlRunFilter.pm module, which is a version
      (subclass) of Apache::PerlRun that works as part of a Filter chain.  

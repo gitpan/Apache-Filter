@@ -95,58 +95,57 @@ __END__
 
 =head1 NAME
 
-Apache::PerlRun - Run unaltered CGI scripts under mod_perl
+Apache::PerlRunFilter - run Perl scripts in an Apache::Filter chain
 
 =head1 SYNOPSIS
 
  #in httpd.conf
 
- Alias /cgi-perl/ /perl/apache/scripts/ 
- PerlModule Apache::PerlRun
+ PerlModule Apache::PerlRunFilter
 
- <Location /cgi-perl>
- SetHandler perl-script
- PerlHandler Apache::PerlRun
- Options +ExecCGI 
- #optional
- PerlSendHeader On
- ...
- </Location>
+ # Run the output of scripts through Apache::SSI
+ <Files ~ "\.pl$">
+  SetHandler perl-script
+  PerlHandler Apache::PerlRunFilter Apache::SSI
+  PerlSetVar Filter on
+ </Files>
+
+ # Generate some Perl code using templates, then execute it
+ <Files ~ "\.tmpl$">
+  SetHandler perl-script
+  PerlHandler YourModule::GenCode Apache::PerlRunFilter
+  PerlSetVar Filter on
+ </Files>
 
 =head1 DESCRIPTION
 
-This module's B<handler> emulates the CGI environment,
-allowing programmers to write scripts that run under CGI or
-mod_perl without change.  Unlike B<Apache::Registry>, the
-B<Apache::PerlRun> handler does not cache the script inside of a
-subroutine.  Scripts will be "compiled" every request.  After the
-script has run, it's namespace is flushed of all variables and
-subroutines.
+This module is a subclass of Apache::PerlRun, and contains all of its
+functionality.  The only difference between the two is that this
+module can be used in conjunction with the Apache::Filter module,
+whereas Apache::PerlRun cannot.
 
-The B<Apache::Registry> handler is much faster than
-B<Apache::PerlRun>.  However, B<Apache::PerlRun> is much faster than
-CGI as the fork is still avoided and scripts can use modules which
-have been pre-loaded at server startup time.  This module is meant for
-"Dirty" CGI Perl scripts which relied on the single request lifetime
-of CGI and cannot run under B<Apache::Registry> without cleanup.
+It only takes a tiny little bit of code to make the filtering stuff
+work, so perhaps it would be more appropriate for the code to be
+integrated right into Apache::PerlRun.  As it stands, I've had to
+duplicate a bunch of PerlRun's code here (in the handler routine), so
+bug fixes & feature changes must be made both places.
 
 =head1 CAVEATS
 
-If your scripts still have problems running under the I<Apache::PerlRun>
-handler, the I<PerlRunOnce> option can be used so that the process running
-the script will be shutdown.  Add this to your httpd.conf:
-
- <Location ...>
- PerlSetVar PerlRunOnce On
- ...
- </Location>
+Note that this is not an exact replacement for Apache::Registry - it
+doesn't do any of the code-caching stuff that Registry does.  It
+shouldn't be too hard a task, but for now Registry is still based on
+old code, and Doug's plan is to make future versions of Registry by
+subclassing PerlRun (see Apache::RegistryNG).  Since this is the case,
+I figured I'd hold off on doing any Registry work until things have
+moved forward a bit.
 
 =head1 SEE ALSO
 
-perl(1), mod_perl(3), Apache::Registry(3)
+perl(1), mod_perl(3), Apache::PerlRun(3)
 
 =head1 AUTHOR
 
-Doug MacEachern
+Ken Williams <ken@forum.swarthmore.edu>
 
 =cut
