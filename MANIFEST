@@ -1,12 +1,12 @@
 Build.PL
 Changes
-MANIFEST
-META.yml
-Makefile.PL
-README
 lib/Apache/Filter.pm
 lib/Apache/PerlRunFilter.pm
 lib/Apache/RegistryFilter.pm
+Makefile.PL
+MANIFEST
+META.yml
+README
 t/config.incl
 t/docs.check/10
 t/docs.check/11
@@ -39,6 +39,6 @@ t/lib/Apache/ChangeHeader.pm
 t/lib/Apache/Compress.pm
 t/lib/Apache/FHandle.pm
 t/lib/Apache/Reverse.pm
-t/lib/Apache/UC.pm
 t/lib/Apache/test.pm
+t/lib/Apache/UC.pm
 t/real.t

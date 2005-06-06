@@ -6,6 +6,10 @@ PerlModule Apache::CacheTest
 PerlModule Apache::FHandle
 PerlModule Apache::ChangeHeader
 
+# A workaround for testing under Mac OS X - see 
+# http://perl.apache.org/docs/1.0/guide/troubleshooting.html#print___doesn_t_send_anything_on_Mac_OS_X
+PerlHeaderParserHandler "sub { tie *STDOUT, 'Apache' unless tied *STDOUT; }"
+
 # Default - this includes directories too
 SetHandler perl-script
 PerlHandler Apache::UC Apache::Reverse

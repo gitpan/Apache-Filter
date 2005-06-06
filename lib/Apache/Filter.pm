@@ -4,7 +4,7 @@ use strict;
 use Symbol;
 use Apache::Constants(':common');
 use vars qw($VERSION @ISA);
-$VERSION = '1.022';
+$VERSION = '1.023';
 @ISA = qw(Apache);
 
 # $r->pnotes('FilterInfo') contains a hashref ($info) which works like member data of $r.
@@ -306,8 +306,7 @@ me of others you know about.
  Apache::ASP
  HTML::Mason
  Apache::SimpleReplace
- Apache::HTML::ClassParser (part of HTML_Tree distribution)
-
+ Text::Forge
 
 =head1 METHODS
 
@@ -489,7 +488,7 @@ turned on PERL_STACKED_HANDLERS.  So don't do it.
 
 =head1 AUTHOR
 
-Ken Williams (ken@forum.swarthmore.edu)
+Ken Williams (kwilliams@cpan.org)
 
 =head1 COPYRIGHT
 

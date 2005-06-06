@@ -1,3 +1,9 @@
+Version: 1.023  Mon Jun  6 06:05:44 CDT 2005
+
+ - Fixed a testing bug under (certain versions of?) Mac OS X, in which
+   none of the pages in t/real.t would generate any output. [Peter
+   Farmer]
+
 Version: 1.022  Fri Jan 31 14:00:48 CST 2003
 
  - Now can be installed using either Module::Build or
