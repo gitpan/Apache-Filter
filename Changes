@@ -1,3 +1,16 @@
+Version: 1.024  Sat Sep 24 21:56:42 CDT 2005
+
+ - Fixed a bug that probably only I would ever see - when running the
+   "disttest" action, it was actually using the server configuration
+   from the top-level distribution directory, not the dist-dir
+   directory.
+
+ - For some reason all the files in the tarball of 1.023 looks like
+   they're read-only and non-executable, which causes lots of tests to
+   fail (e.g. those trying to execute CGI-style scripts).  I'm
+   re-releasing what looks like correct permissions. [Spotted by Tom
+   Kirkpatrick]
+
 Version: 1.023  Mon Jun  6 06:05:44 CDT 2005
 
  - Fixed a testing bug under (certain versions of?) Mac OS X, in which

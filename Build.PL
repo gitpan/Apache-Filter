@@ -14,7 +14,7 @@ if (have_httpd()) {
   
   $class = $class->subclass
     (
-     code => sprintf(<<'     EOF', Module::Build->cwd, $params{port}),
+     code => sprintf(<<'     EOF', $params{port}),
        sub ACTION_test {
 	 my $self = shift;
 	 
@@ -22,7 +22,7 @@ if (have_httpd()) {
 	 
 	 # Could be File::Spec-ified, but this is mostly a Unix module
 	 $self->add_to_cleanup(qw(t/httpd t/httpd.conf t/error_log));
-	 $self->do_system('t/httpd', '-f', "%s/t/httpd.conf");
+	 $self->do_system('t/httpd', '-f', $self->base_dir . "/t/httpd.conf");
 	 
 	 $ENV{PORT} = %s;  # Used by the test scripts
 	   eval { $self->SUPER::ACTION_test };

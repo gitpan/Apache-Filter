@@ -4,7 +4,7 @@ use strict;
 use Symbol;
 use Apache::Constants(':common');
 use vars qw($VERSION @ISA);
-$VERSION = '1.023';
+$VERSION = '1.024';
 @ISA = qw(Apache);
 
 # $r->pnotes('FilterInfo') contains a hashref ($info) which works like member data of $r.
